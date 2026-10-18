@@ -15,6 +15,7 @@ import { usePlayback } from "@/components/playback/playback-provider";
 import { QueueTrack } from "@/components/playback/queue-track";
 import { TrackMetadata } from "@/components/music/track-metadata";
 import { trackDetails } from "@/lib/music/track-details";
+import { TrackCover } from "@/components/music/track-cover";
 
 export function QueuePanel() {
   const p = usePlayback();
@@ -58,7 +59,8 @@ export function QueuePanel() {
             {p.track ? (
               <div className="border bg-muted/40 p-4" aria-current="true">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                  <TrackCover src={currentDetails?.artwork} />
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium break-words">
                       {currentDetails?.title}
                     </p>

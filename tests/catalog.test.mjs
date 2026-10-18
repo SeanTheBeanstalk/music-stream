@@ -25,7 +25,7 @@ const candidate = (
   uploader = "The Artist - Topic",
   duration = 200
 ) => normalizeTrack({ id: "dQw4w9WgXcQ", title, uploader, duration });
-test("catalog identity, structured artist/album provenance, unknown fields and asset exclusion", () => {
+test("catalog identity, structured artist/album provenance, unknown fields and preview exclusion", () => {
   assert.equal(catalog.id, "itunes:123");
   assert.equal(catalog.artist.id, 4);
   assert.equal(catalog.album.country, "US");
@@ -44,12 +44,46 @@ test("catalog identity, structured artist/album provenance, unknown fields and a
   assert.equal(minimal.artist.name, null);
   assert.equal(minimal.album.releaseDate, null);
   assert.equal(minimal.storeUrl, null);
-  assert.equal("artwork" in minimal, false);
+  assert.equal(minimal.artwork, null);
   assert.equal("previewUrl" in minimal, false);
   assert.equal(normalizeCatalog({ ...row, trackId: -1 }, "US"), null);
   assert.equal(normalizeCatalog({ ...row, kind: "music-video" }, "US"), null);
   assert.equal(storefront("sg"), "SG");
   assert.equal(storefront("ZZ"), null);
+});
+
+test("catalog covers accept Apple artwork URLs and reject untrusted URLs", () => {
+  const artwork =
+    "https://is1-ssl.mzstatic.com/image/thumb/Music/test/100x100bb.jpg";
+  assert.equal(
+    normalizeCatalog({ ...row, artworkUrl100: artwork }, "US").artwork,
+    artwork
+  );
+  assert.equal(
+    normalizeCatalog({ ...row, artworkUrl60: artwork }, "US").artwork,
+    artwork
+  );
+  for (const url of [
+    "http://is1.mzstatic.com/art.jpg",
+    "https://mzstatic.com.evil.test/art.jpg",
+    "https://evil.test/art.jpg",
+    "https://user@is1.mzstatic.com/art.jpg",
+    "https://is1.mzstatic.com:8080/art.jpg",
+    "javascript:alert(1)",
+    "invalid",
+  ]) {
+    assert.equal(
+      normalizeCatalog({ ...row, artworkUrl100: url }, "US").artwork,
+      null
+    );
+  }
+  const withCover = normalizeCatalog({ ...row, artworkUrl100: artwork }, "US");
+  assert.equal(
+    trackDetails({ ...candidate(), catalog: withCover }).artwork,
+    artwork
+  );
+  assert.equal(trackDetails({ ...candidate(), catalog }).artwork, null);
+  assert.equal(trackDetails(candidate()).artwork, candidate().artwork);
 });
 test("matching selects the highest YouTube result with the catalog title and artist", () => {
   const unrelated = candidate("Someone - Another Song", "Someone");

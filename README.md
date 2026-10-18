@@ -13,10 +13,9 @@ resolved upload's title, uploader and YouTube link in its result card.
 Playback continues between Home and Search. Queue data stays in memory;
 likes, playlists, and persistence belong to the library phase.
 
-Catalog cards use placeholders. Apple's promotional-asset conditions restrict
-artwork and previews to permitted promotional contexts; authorization for this
-playback UI remains unresolved. No iTunes artwork or previews are displayed,
-fetched, proxied, or cached. See [Apple's usage conditions](https://performance-partners.apple.com/search-api).
+Catalog covers use validated iTunes artwork URLs, loaded directly by the browser.
+Missing or failed images fall back to a music icon. Artwork media is not proxied
+or persisted; audio previews remain disabled. Apple's [usage conditions](https://performance-partners.apple.com/search-api) still apply.
 
 Open Queue from the bottom player to see the current track and upcoming tracks.
 Adding the first track leaves it in Up next without loading audio. Press the
@@ -108,8 +107,8 @@ focus handling, repeat modes and track endings, and layouts at 320, 375, 768,
 and 1280 pixels. Use headless Microsoft Edge for browser checks. This check does
 not validate real audio playback or seeking.
 
-Catalog unit tests cover normalization, asset exclusion, storefronts, cache bounds, coalescing, cancellation, throttling, failures, matching variants and queue identity. Live audio matching and seeking still require network/browser validation.
+Catalog unit tests cover normalization, cover URL validation and preview exclusion, storefronts, cache bounds, coalescing, cancellation, throttling, failures, matching variants and queue identity. Live audio matching and seeking still require network/browser validation.
 
 Run `node tests/browser-catalog-check.mjs` with the same Edge setup for deterministic catalog submission, storefront selection, resolution retry, stale-response cancellation, empty/throttled states and queue preservation checks. These browser checks stub external services; they do not validate live YouTube matching or audio.
 
-Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist, album and explicitness, omitting genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Artwork remains disabled under the existing asset-use policy.
+Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist, album and explicitness, omitting genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Cover metadata is displayed in search, queue, and the desktop player; missing or failed covers use a music icon.

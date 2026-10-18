@@ -118,6 +118,7 @@ try {
   await send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
     window.catalogRequests = []; window.resolutionMode = 'success';
+    window.cover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
     HTMLMediaElement.prototype.load = function() {};
     HTMLMediaElement.prototype.play = function() { this.dispatchEvent(new Event('play')); return Promise.resolve(); };
     HTMLMediaElement.prototype.pause = function() { this.dispatchEvent(new Event('pause')); };
@@ -129,12 +130,12 @@ try {
         const query = params.get('q');
         if (query === 'empty') return Promise.resolve(Response.json({ tracks: [] }));
         if (query === 'throttle') return Promise.resolve(Response.json({ error: 'iTunes is limiting requests. Please retry shortly.' }, { status: 429 }));
-        return new Promise(resolve => setTimeout(() => resolve(Response.json({ tracks: [{ id: 'itunes:123', trackId: 123, title: query, country: params.get('country'), artist: { name: 'Artist' }, album: { name: 'Album', releaseDate: null }, duration: 200, explicitness: 'explicit' }] })), query === 'slow' ? 1000 : 10));
+        return new Promise(resolve => setTimeout(() => resolve(Response.json({ tracks: [{ id: 'itunes:123', trackId: 123, artwork: window.cover, title: query, country: params.get('country'), artist: { name: 'Artist' }, album: { name: 'Album', releaseDate: null }, duration: 200, explicitness: 'explicit' }] })), query === 'slow' ? 1000 : 10));
       }
       if (String(url).startsWith('/api/resolve')) {
         if (window.resolutionMode === 'fail') return Promise.resolve(Response.json({ error: 'No confident YouTube match. Try another recording or retry.' }, { status: 422 }));
         const mode = window.resolutionMode;
-        return new Promise(resolve => setTimeout(() => resolve(Response.json({ track: { id: 'dQw4w9WgXcQ', title: 'Resolved upload', uploader: 'Artist - Topic', artwork: '', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', duration: 205, catalog: { id: 'itunes:123', title: 'Catalog song', artist: { name: 'Catalog artist' }, album: { name: 'Catalog album', releaseDate: '2020-01-01' }, genre: 'Pop', explicitness: 'explicit', duration: 200, storeUrl: 'https://music.apple.com/us/album/test/123' } } })), mode === 'slow' ? 1000 : 10));
+        return new Promise(resolve => setTimeout(() => resolve(Response.json({ track: { id: 'dQw4w9WgXcQ', title: 'Resolved upload', uploader: 'Artist - Topic', artwork: '', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', duration: 205, catalog: { id: 'itunes:123', artwork: window.cover, title: 'Catalog song', artist: { name: 'Catalog artist' }, album: { name: 'Catalog album', releaseDate: '2020-01-01' }, genre: 'Pop', explicitness: 'explicit', duration: 200, storeUrl: 'https://music.apple.com/us/album/test/123' } } })), mode === 'slow' ? 1000 : 10));
       }
       return realFetch(url, options);
     };
@@ -151,6 +152,14 @@ try {
   assert.equal(await evaluate("catalogRequests.length"), before);
   await submit("first");
   await until("document.querySelector('article h2')?.textContent === 'first'");
+  await until("document.querySelector('article img')?.naturalWidth > 0");
+  await evaluate(
+    "document.querySelector('article img').dispatchEvent(new Event('error'))"
+  );
+  await until(
+    "!document.querySelector('article img') && !!document.querySelector('article svg')"
+  );
+
   assert.equal(
     await evaluate(
       "document.querySelector('article').textContent.includes('Catalog duration')"
@@ -226,6 +235,10 @@ try {
     await closeDetails();
   }
   await openQueue(0);
+  await until(
+    "document.querySelector('[aria-current=true] img')?.naturalWidth > 0"
+  );
+  await until("document.querySelector('footer img')?.naturalWidth > 0");
   assert.ok(
     await evaluate(
       "document.querySelector('[aria-current=true]').textContent.includes('Catalog song') && !document.querySelector('[aria-current=true]').textContent.includes('4:05') && !document.querySelector('[aria-current=true]').textContent.includes('Explicit')"
@@ -257,6 +270,10 @@ try {
     "document.querySelector('article').textContent.includes('Added to queue')"
   );
   await openQueue(1);
+  await until(
+    "document.querySelector('[aria-label=\"Upcoming tracks\"] img')?.naturalWidth > 0"
+  );
+
   await keyboardClick("Track details for queued track 1. Catalog song");
   await until(
     "document.querySelector('[data-slot=popover-content]')?.textContent.includes('Pop')"

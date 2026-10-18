@@ -6,6 +6,7 @@ import { formatTime } from "@/lib/music/track";
 import { trackDetails } from "@/lib/music/track-details";
 import { QueuePanel } from "@/components/playback/queue-panel";
 import { RepeatControl } from "@/components/playback/repeat-control";
+import { TrackCover } from "@/components/music/track-cover";
 
 export function MusicPlayer() {
   const p = usePlayback();
@@ -20,6 +21,9 @@ export function MusicPlayer() {
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-3">
         <div className="flex items-center gap-4">
+          {p.track && (
+            <TrackCover src={details?.artwork} className="hidden sm:flex" />
+          )}
           <div className="min-w-0 flex-1">
             <p
               className="truncate text-sm font-semibold"

@@ -31,6 +31,22 @@ export interface CatalogTrack {
   genre: string | null;
   explicitness: "explicit" | "cleaned" | "notExplicit" | null;
   storeUrl: string | null;
+  artwork: string | null;
+}
+function catalogArtwork(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol === "https:" &&
+      url.hostname.endsWith(".mzstatic.com") &&
+      !url.username &&
+      !url.password &&
+      !url.port
+    )
+      return url.href;
+  } catch {}
+  return null;
 }
 export const catalogId = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -95,5 +111,9 @@ export function normalizeCatalog(
       ? (row.trackExplicitness as CatalogTrack["explicitness"])
       : null,
     storeUrl,
+    artwork:
+      catalogArtwork(row.artworkUrl100) ??
+      catalogArtwork(row.artworkUrl60) ??
+      catalogArtwork(row.artworkUrl30),
   };
 }

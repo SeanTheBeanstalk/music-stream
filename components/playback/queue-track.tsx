@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { type Track } from "@/lib/music/track";
 import { TrackMetadata } from "@/components/music/track-metadata";
 import { trackDetails } from "@/lib/music/track-details";
+import { TrackCover } from "@/components/music/track-cover";
 
 interface QueueTrackProps {
   track: Track;
@@ -41,6 +42,7 @@ export function QueueTrack({
         >
           <Play aria-hidden="true" />
         </Button>
+        <TrackCover src={details.artwork} className="size-10" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium" title={details.title}>
             {details.title}

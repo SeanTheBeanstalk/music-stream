@@ -12,6 +12,7 @@ export function trackDetails(
       title: track.title,
       description: track.uploader ?? "Unknown uploader",
       storeUrl: null,
+      artwork: track.artwork,
     };
   return {
     title: catalog.title,
@@ -31,5 +32,6 @@ export function trackDetails(
       .filter(Boolean)
       .join(" · "),
     storeUrl: catalog.storeUrl,
+    artwork: catalog.artwork,
   };
 }

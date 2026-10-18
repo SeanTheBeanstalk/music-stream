@@ -1,5 +1,5 @@
 "use client";
-import { Music2 } from "lucide-react";
+import { TrackCover } from "@/components/music/track-cover";
 import { useState, type RefObject } from "react";
 import { TrackActions } from "./track-actions";
 import type { Track } from "@/lib/music/track";
@@ -15,12 +15,7 @@ export function SearchResult({
   const [source, setSource] = useState<Track | undefined>();
   return (
     <article className="grid gap-5 border bg-card p-5 sm:grid-cols-[100px_1fr] sm:p-6">
-      <div
-        className="flex aspect-square w-24 items-center justify-center bg-muted text-muted-foreground"
-        aria-hidden="true"
-      >
-        <Music2 className="size-10" />
-      </div>
+      <TrackCover src={track.artwork} className="size-24" />
       <div className="min-w-0 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <h2 className="min-w-0 text-xl font-semibold wrap-break-word">

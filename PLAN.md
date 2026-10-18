@@ -20,10 +20,12 @@ Checked items are implemented in the current working tree. They do not imply tha
 ### Existing Search Foundation
 
 - [x] Submit a song, artist, or album query with Enter or the Search button; no search subprocess on each keystroke.
+- [x] Request and display at most five iTunes song results, preserving upstream order.
 - [x] Original YouTube search foundation retained in the on-demand resolver; `/api/search` now returns iTunes catalog results.
 - [x] Trim and validate queries, rejecting empty, oversized, and control-character input.
 - [x] Normalize tracks with a validated video ID, canonical watch URL, title, artwork, and optional uploader and duration.
 - [x] Inspect the selected upload title, uploader, and YouTube link after catalog source resolution.
+- [x] Search and queue cards show title, artist, and album, with catalog duration, genre, release date, explicitness, storefront, and available store/source links in keyboard-accessible details popups.
 - [x] Play and Add to queue actions with queue confirmation feedback.
 - [x] Initial, loading, no-result, success, and recoverable search-error states.
 - [x] Cancel superseded searches and requests on unmount; prevent stale results from replacing the latest search.
@@ -34,6 +36,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] One audio element and playback provider mounted in the root layout to preserve playback across Home/Search navigation.
 - [x] Playback and queue state separated from search UI and track normalization.
 - [x] Play/pause, previous/next, volume, elapsed time, and duration controls.
+- [x] Player displays the catalog song title, artist, album, and explicitness separately from YouTube upload metadata; playback timing uses the browser audio resource.
 - [x] Seek control enabled when the browser reports a seekable resource and finite duration.
 - [x] In-memory queue retaining selected video IDs and metadata without repeating text searches.
 - [x] Queue additions preserve the active track and upcoming order; the first track stays in Up next until Play makes it current.
@@ -62,8 +65,10 @@ Checked items are implemented in the current working tree. They do not imply tha
 
 - [x] Unit tests for track normalization and canonical identity, queue order, replay, queue boundaries, queued selection, removal, reordering, clearing, and invalid edits.
 - [x] Unit tests for subprocess cancellation, missing executables, concurrency, output limits, failures, and timeouts.
+- [x] Unit tests for catalog normalization and provenance, separate catalog/video identities, title-and-artist matching, cache coalescing and cancellation, storefront isolation, request budgets, upstream errors, the five-result limit, and player metadata.
 - [x] Browser smoke-test script covering live search/playback, seeking, keyboard controls, navigation persistence, mobile overflow, stale results, and empty/error states.
 - [x] Browser queue regression script with stubbed search/audio covering selection, removal, reordering, clearing, navigation persistence, keyboard controls, focus handling, and layouts at 320, 375, 768, and 1280 pixels.
+- [x] Browser catalog regression script with stubbed catalog/resolution/audio covering submit-only search, storefront selection, details popups, keyboard access, failed-match safety and retry, stale searches/actions, empty/throttled states, playback preservation, and responsive layouts.
 - [x] README setup instructions for Node.js, pnpm, `yt-dlp`, environment configuration, checks, and manual/browser validation.
 
 ### Remaining Roadmap and Verification
@@ -71,7 +76,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] iTunes catalog search through a validated, cached server route, with storefront selection and rate-limit handling.
 - [x] Structured iTunes track metadata in search results, with separate catalog and playback identities.
 - [x] Resolve selected catalog tracks to matching YouTube uploads on Play or Add to queue, selecting the highest YouTube result matching the title and artist.
-- [x] Reviewed Apple promotional-asset conditions; iTunes artwork and previews stay disabled, with placeholders used in catalog results. Permission for artwork in this playback UI remains unresolved.
+- [x] Display validated iTunes cover metadata in search, queue, and player with missing/broken-image fallbacks, as requested. Audio previews remain disabled.
 - [ ] Library screen, liked songs, personal playlists, and playlist operations with meaningful tests.
 - [ ] Persistent library storage, accounts, and cross-device access.
 - [ ] Listening history, recently played tracks, and featured playlists on Home.
@@ -87,7 +92,7 @@ Build the app in five phases, with a working **search → play → save** experi
 
 ## 1. Add iTunes Catalog Metadata and YouTube Matching
 
-Use the iTunes Search API to search for songs by song, artist, or album text and present structured catalog metadata in the frontend. Keep YouTube as the audio source through the existing `yt-dlp` integration. The checked search items above describe the current YouTube implementation; the iTunes integration and matching flow below are now implemented.
+Use the iTunes Search API to search for songs by song, artist, or album text and present structured catalog metadata in the frontend. Keep YouTube as the audio source through the existing `yt-dlp` integration. The checked search items above describe the implemented iTunes catalog and on-demand YouTube matching flow.
 
 Keep both integrations in server-only modules, separate from UI and playback state. Request `https://itunes.apple.com/search` with encoded parameters such as `term`, `media=music`, `entity=song`, a bounded `limit`, and an explicitly selected two-letter `country` storefront. Make the storefront configurable and include it in cache keys. No Apple Music API integration or developer token is required for this Search API flow.
 
@@ -99,7 +104,7 @@ Store the validated selected video ID and canonical watch URL (`https://www.yout
 
 ### Apple Asset Use
 
-Apple's [Search API documentation and usage conditions](https://performance-partners.apple.com/search-api) restrict promotional assets, including artwork and previews, to permitted promotional contexts with required store links/badges and applicable attribution. Confirm the intended UI meets those conditions before enabling iTunes artwork; a store link alone should not be assumed sufficient. Use existing placeholders when permission is unresolved. Do not download, cache, or proxy artwork without confirming applicable permissions. Do not add iTunes audio previews in this phase or treat them as full-track audio. Cache catalog JSON separately from promotional media assets.
+Per the requested cover update, retain validated HTTPS mzstatic.com artwork URLs from iTunes metadata and display them directly in the browser, with placeholders for missing or failed images. Do not proxy or persist artwork media. Audio previews remain disabled. Apple's [Search API usage conditions](https://performance-partners.apple.com/search-api) still apply; enabling display does not establish licensing permission for a deployment.
 
 ## 2. Build the First Usable Version
 
@@ -172,6 +177,6 @@ Choose hosting after confirming the audio delivery requirements.
 
 ## First Implementation Scope
 
-Implement iTunes song search and frontend metadata with server-side caching, then add on-demand YouTube matching while retaining the responsive app shell and persistent player with a shared queue. Confirm promotional-asset permissions before enabling iTunes artwork; use placeholders otherwise. Connect saving through the library phase. Defer iTunes previews, standalone artist/album browsing, user-facing alternate-source selection, subscriptions, recommendations, social features, and offline downloads until the core experience is dependable.
+Implement iTunes song search and frontend metadata with server-side caching, then add on-demand YouTube matching while retaining the responsive app shell and persistent player with a shared queue. Display catalog cover metadata with missing/broken-image fallbacks as requested; keep artwork media separate from JSON caching. Connect saving through the library phase. Defer iTunes previews, standalone artist/album browsing, user-facing alternate-source selection, subscriptions, recommendations, social features, and offline downloads until the core experience is dependable.
 
-Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist, album and explicitness, omitting genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Artwork remains disabled under the existing asset-use policy.
+Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist, album and explicitness, omitting genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Cover metadata is displayed in search, queue, and the desktop player; missing or failed covers use a music icon.
