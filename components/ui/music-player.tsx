@@ -56,11 +56,11 @@ export function MusicPlayer() {
             </Button>
             <Button
               size="icon"
-              aria-label={p.playing ? "Pause" : "Play"}
+              aria-label={p.playRequested ? "Pause" : "Play"}
               disabled={!p.track && !upcoming.length}
               onClick={p.toggle}
             >
-              {p.playing ? <Pause /> : <Play />}
+              {p.playRequested ? <Pause /> : <Play />}
             </Button>
             <Button
               variant="ghost"

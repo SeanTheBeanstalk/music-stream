@@ -11,11 +11,14 @@ import {
 } from "react";
 import { emptyQueue, queueReducer, type RepeatMode } from "@/lib/music/queue";
 import type { Track } from "@/lib/music/track";
+import { createPlaybackRetry } from "@/lib/music/playback-retry";
 
 function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   const [queue, dispatch] = useReducer(queueReducer, emptyQueue);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [playing, setPlaying] = useState(false);
+  const [playRequested, setPlayRequested] = useState(false);
+  const retryRef = useRef<ReturnType<typeof createPlaybackRetry> | null>(null);
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState(0);
@@ -23,27 +26,33 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   const [volume, setVolume] = useState(1);
   const [seekable, setSeekable] = useState(false);
   const track = queue.tracks[queue.index];
-  const playAudio = () => {
-    const audio = audioRef.current;
-    if (!audio?.src) return;
-    if (audio.error) audio.load();
-    setError(null);
-    setBuffering(true);
-    void audio.play().catch((cause: unknown) => {
-      if (cause instanceof DOMException && cause.name === "AbortError") return;
-      setBuffering(false);
-      setError(
-        "Playback could not start. Try Play again or choose another track."
-      );
-    });
-  };
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !track) return;
-    audio.src = `/api/stream/${track.id}`;
-    audio.load();
+    if (!audio) return;
+    const retry = createPlaybackRetry(audio, (status, delay) => {
+      setPlayRequested(status !== "paused" && status !== "blocked");
+      setPlaying(status === "playing");
+      setBuffering(status === "loading");
+      setError(
+        status === "retrying"
+          ? `Unable to load audio. Retrying in ${delay! / 1000}s… Pause to cancel or skip this track.`
+          : status === "blocked"
+            ? "Your browser requires you to press Play to start audio."
+            : null
+      );
+    });
+    retryRef.current = retry;
+    return () => {
+      retry.stop();
+      retryRef.current = null;
+    };
+  }, [audioRef]);
+  useEffect(() => {
+    const retry = retryRef.current;
+    if (!retry || !track) return;
     // Only an explicit playback action promotes an upcoming track to current.
-    if (queue.revision > 0) playAudio();
+    if (queue.revision > 0) retry.start(`/api/stream/${track.id}`);
+    return () => retry.stop();
     // Queue additions must not reload or interrupt the active audio.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [track?.id, queue.index, queue.revision]);
@@ -56,6 +65,7 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
       ),
     track,
     playing,
+    playRequested,
     buffering,
     error,
     time,
@@ -73,8 +83,8 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     previous: () => dispatch({ type: "previous" }),
     toggle: () => {
       if (!track) dispatch({ type: "next" });
-      else if (playing) audioRef.current?.pause();
-      else playAudio();
+      else if (playRequested) retryRef.current?.stop();
+      else retryRef.current?.start();
     },
     seek: (value: number) => {
       if (audioRef.current && seekable) audioRef.current.currentTime = value;
@@ -90,9 +100,9 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
         setBuffering(false);
       },
       onPlaying: () => {
-        setBuffering(false);
-        setError(null);
+        retryRef.current?.playing();
       },
+      onLoadedMetadata: () => retryRef.current?.loadedMetadata(),
       onWaiting: () => setBuffering(true),
       onLoadStart: () => {
         setTime(0);
@@ -112,15 +122,10 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
         setSeekable((audioRef.current?.seekable.length ?? 0) > 0);
       },
       onError: () => {
-        setPlaying(false);
-        setBuffering(false);
-        setError(
-          "This track could not be loaded. Retry Play or skip to the next track."
-        );
+        retryRef.current?.failed();
       },
       onEnded: () => {
-        setPlaying(false);
-        setBuffering(false);
+        retryRef.current?.stop();
         dispatch({ type: "ended", repeatMode });
       },
     },

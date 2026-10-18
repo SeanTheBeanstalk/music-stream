@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="border-b bg-sidebar md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:pb-56">
         <div className="flex items-center gap-3 p-6 text-lg font-semibold">
           <Music2 aria-hidden="true" />
-          Music stream
+          Streamify
         </div>
         <nav
           aria-label="Main navigation"

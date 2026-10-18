@@ -43,7 +43,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] Playing a selection inserts it after the current track and preserves upcoming tracks; replaying the same video is supported.
 - [x] Advance to the next queued track when playback ends; stop at the queue boundary when repeat is Off.
 - [x] Empty-player, empty-queue, end-of-queue, upcoming-track, and queued-count displays.
-- [x] Buffering and playback-failure messages with manual retry or skip controls.
+- [x] Buffering and playback-failure messages with automatic retries (1s exponential backoff capped at 30s, no attempt limit), pause-to-cancel and skip controls; browser autoplay restrictions require Play.
 - [x] Visible, interactive queue panel showing the current track and upcoming tracks in playback order.
 - [x] Queue controls to play a queued track, remove tracks, reorder upcoming tracks, and clear upcoming tracks without interrupting current playback.
 - [x] Responsive, keyboard-accessible queue UI with empty states, status announcements, focus handling, and meaningful tests for queue interactions.

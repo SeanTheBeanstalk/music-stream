@@ -143,7 +143,16 @@ try {
     window.testTitle = '';
     window.audioLoads = 0;
     HTMLMediaElement.prototype.load = function() { window.audioLoads++; };
-    HTMLMediaElement.prototype.play = function() { this.dispatchEvent(new Event('play')); return Promise.resolve(); };
+    HTMLMediaElement.prototype.play = function() {
+      if (window.remainingFailures > 0) {
+        window.remainingFailures--;
+        this.dispatchEvent(new Event('error'));
+        return Promise.reject(new DOMException('Stubbed stream failure', 'NotSupportedError'));
+      }
+      this.dispatchEvent(new Event('play'));
+      this.dispatchEvent(new Event('playing'));
+      return Promise.resolve();
+    };
     HTMLMediaElement.prototype.pause = function() { this.dispatchEvent(new Event('pause')); };
     const realFetch = window.fetch;
     window.fetch = (url, options) => String(url).startsWith('/api/search')
@@ -224,14 +233,35 @@ try {
   );
   const errorLoads = await evaluate("window.audioLoads");
   await evaluate(
+    "window.remainingFailures = 1; document.querySelector('audio').dispatchEvent(new Event('error'))"
+  );
+  await until(
+    "document.querySelector('footer').textContent.includes('Retrying in 1s')"
+  );
+  assert.equal(await evaluate("window.audioLoads"), errorLoads);
+  await until(
+    "document.querySelector('footer').textContent.includes('Retrying in 2s')"
+  );
+  await until(`window.audioLoads === ${errorLoads + 2}`);
+  await until(
+    "!document.querySelector('footer').textContent.includes('Retrying')"
+  );
+  await evaluate(
     "document.querySelector('audio').dispatchEvent(new Event('error'))"
   );
   await until(
-    "document.querySelector('footer').textContent.includes('This track could not be loaded')"
+    "document.querySelector('footer').textContent.includes('Retrying in 1s')"
   );
-  assert.equal(await evaluate("window.audioLoads"), errorLoads);
+  await keyboardClick("Pause");
+  const pausedLoads = await evaluate("window.audioLoads");
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  assert.equal(await evaluate("window.audioLoads"), pausedLoads);
   await evaluate(
-    "document.querySelector('footer button[aria-label=Play]').click()"
+    "document.querySelector('footer button[aria-label=Play]').focus()"
+  );
+  await key("Enter", 13);
+  console.log(
+    "PASS automatic retry recovery with backoff, keyboard cancellation and manual resume"
   );
   await keyboardClick(repeatLabels.track);
   await ended();
