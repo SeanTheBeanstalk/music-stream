@@ -58,6 +58,11 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     seekable,
     play: (track: Track) => dispatch({ type: "play", track }),
     enqueue: (track: Track) => dispatch({ type: "enqueue", track }),
+    playQueued: (index: number) => dispatch({ type: "select", index }),
+    removeQueued: (index: number) => dispatch({ type: "remove", index }),
+    moveQueued: (from: number, to: number) =>
+      dispatch({ type: "move", from, to }),
+    clearUpcoming: () => dispatch({ type: "clear-upcoming" }),
     next: () => dispatch({ type: "next" }),
     previous: () => dispatch({ type: "previous" }),
     toggle: () => {

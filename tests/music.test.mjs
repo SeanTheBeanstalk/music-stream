@@ -69,6 +69,110 @@ test("cancelled subprocess requests never launch", async () => {
     (error) => error instanceof YoutubeError && error.status === 499
   );
 });
+
+const third = { ...first, title: "Third" };
+function populatedQueue() {
+  return [first, second, third, first].reduce(
+    (state, track) => queueReducer(state, { type: "enqueue", track }),
+    emptyQueue
+  );
+}
+
+test("select queued occurrence without duplicating tracks, including repeated videos", () => {
+  const queued = populatedQueue();
+  const selected = queueReducer(queued, { type: "select", index: 2 });
+  assert.equal(selected.index, 1);
+  assert.deepEqual(selected.tracks, [first, third, second, first]);
+  assert.equal(selected.revision, queued.revision + 1);
+  const duplicate = queueReducer(selected, { type: "select", index: 3 });
+  assert.equal(duplicate.tracks[duplicate.index], first);
+  assert.equal(duplicate.tracks.length, 4);
+  assert.deepEqual(duplicate.tracks, [first, third, first, second]);
+  const replay = queueReducer(duplicate, {
+    type: "select",
+    index: duplicate.index,
+  });
+  assert.equal(replay.revision, duplicate.revision + 1);
+  assert.equal(replay.index, duplicate.index);
+  assert.equal(replay.tracks, duplicate.tracks);
+  assert.deepEqual(queued.tracks, [first, second, third, first]);
+});
+
+test("playing the last queued track preserves intervening songs and playback history", () => {
+  const queued = queueReducer(populatedQueue(), { type: "next" });
+  const selected = queueReducer(queued, { type: "select", index: 3 });
+  assert.deepEqual(selected.tracks, [first, second, first, third]);
+  assert.deepEqual(selected.tracks.slice(selected.index + 1), [third]);
+  assert.equal(
+    queueReducer(selected, { type: "next" }).tracks[selected.index + 1],
+    third
+  );
+  assert.equal(
+    queueReducer(selected, { type: "previous" }).tracks[selected.index - 1],
+    second
+  );
+});
+
+test("remove and reorder only upcoming occurrences without changing active playback", () => {
+  const queued = populatedQueue();
+  const moved = queueReducer(queued, { type: "move", from: 3, to: 1 });
+  assert.deepEqual(moved.tracks, [first, first, second, third]);
+  const removed = queueReducer(moved, { type: "remove", index: 1 });
+  assert.deepEqual(removed.tracks, [first, second, third]);
+  const restored = queueReducer(moved, { type: "move", from: 1, to: 3 });
+  assert.deepEqual(restored.tracks, queued.tracks);
+  for (const state of [moved, removed, restored]) {
+    assert.equal(state.index, queued.index);
+    assert.equal(state.revision, queued.revision);
+    assert.equal(state.tracks[state.index], first);
+  }
+  assert.deepEqual(queued.tracks, [first, second, third, first]);
+  const next = queueReducer(removed, { type: "next" });
+  assert.equal(next.tracks[next.index], second);
+});
+
+test("clear upcoming preserves current track and playback history", () => {
+  const queued = queueReducer(populatedQueue(), { type: "select", index: 1 });
+  const cleared = queueReducer(queued, { type: "clear-upcoming" });
+  assert.deepEqual(cleared.tracks, [first, second]);
+  assert.equal(cleared.index, queued.index);
+  assert.equal(cleared.revision, queued.revision);
+  assert.equal(queueReducer(cleared, { type: "next" }), cleared);
+  assert.equal(queueReducer(cleared, { type: "previous" }).index, 0);
+  assert.equal(queueReducer(cleared, { type: "clear-upcoming" }), cleared);
+  assert.equal(
+    queueReducer(emptyQueue, { type: "clear-upcoming" }),
+    emptyQueue
+  );
+});
+
+test("invalid queue edits cannot remove or move current/history tracks", () => {
+  const queued = queueReducer(populatedQueue(), { type: "select", index: 1 });
+  for (const index of [-1, 4, 1.5, NaN, Infinity]) {
+    assert.equal(queueReducer(queued, { type: "select", index }), queued);
+    assert.equal(queueReducer(queued, { type: "remove", index }), queued);
+    assert.equal(
+      queueReducer(queued, { type: "move", from: index, to: 2 }),
+      queued
+    );
+    assert.equal(
+      queueReducer(queued, { type: "move", from: 2, to: index }),
+      queued
+    );
+  }
+  for (const index of [0, 1]) {
+    assert.equal(queueReducer(queued, { type: "remove", index }), queued);
+    assert.equal(
+      queueReducer(queued, { type: "move", from: index, to: 2 }),
+      queued
+    );
+    assert.equal(
+      queueReducer(queued, { type: "move", from: 2, to: index }),
+      queued
+    );
+  }
+  assert.equal(queueReducer(queued, { type: "move", from: 2, to: 2 }), queued);
+});
 test("missing yt-dlp produces a recoverable service error", async () => {
   const original = process.env.YT_DLP_PATH;
   process.env.YT_DLP_PATH = "nonexistent-music-stream-test-executable";

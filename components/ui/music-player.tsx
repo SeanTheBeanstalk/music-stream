@@ -3,6 +3,7 @@ import { Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlayback } from "@/components/playback/playback-provider";
 import { formatTime } from "@/lib/music/track";
+import { QueuePanel } from "@/components/playback/queue-panel";
 
 export function MusicPlayer() {
   const p = usePlayback();
@@ -63,6 +64,7 @@ export function MusicPlayer() {
               className="w-24 accent-current"
             />
           </label>
+          <QueuePanel />
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span>{formatTime(p.time)}</span>

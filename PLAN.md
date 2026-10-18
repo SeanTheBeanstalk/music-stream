@@ -2,7 +2,89 @@
 
 ## Current Foundation
 
-The repository has a Next.js/TypeScript foundation, Tailwind styling, a reusable audio player, and experimental YouTube metadata/streaming routes. The homepage is still a starter screen.
+The repository has a Next.js/TypeScript foundation, Tailwind styling, responsive Home and Search screens, a shared audio player and queue, and YouTube search, metadata, and audio streaming routes backed by `yt-dlp`. Library features and persistent storage are still planned.
+
+## Feature Checklist
+
+Checked items are implemented in the current working tree. They do not imply that live playback, browser compatibility, or deployment has been fully validated.
+
+### App Foundation and Navigation
+
+- [x] Next.js App Router with TypeScript, Tailwind styling, theme provider, and reusable UI primitives.
+- [x] Home landing page with a link to music search.
+- [x] Search page built from separate input, result, and track-action components.
+- [x] Responsive app shell with a desktop sidebar, mobile navigation, and active-page indicators.
+- [x] Bottom player with independently scrolling page content.
+- [x] Accessibility support through a skip link, labeled controls, keyboard focus styles, and live search/player status announcements.
+
+### YouTube Search and Metadata
+
+- [x] Submit a song, artist, or album query with Enter or the Search button; no search subprocess on each keystroke.
+- [x] `/api/search?q=...` resolves the first YouTube result through `yt-dlp` without downloading audio.
+- [x] Trim and validate queries, rejecting empty, oversized, and control-character input.
+- [x] Normalize tracks with a validated video ID, canonical watch URL, title, artwork, and optional uploader and duration.
+- [x] Preview the selected upload with artwork, metadata, and a link to YouTube before playing.
+- [x] Play and Add to queue actions with queue confirmation feedback.
+- [x] Initial, loading, no-result, success, and recoverable search-error states.
+- [x] Cancel superseded searches and requests on unmount; prevent stale results from replacing the latest search.
+- [x] `/api/metadata/{videoId}` retrieves normalized metadata for a validated video ID.
+
+### Planned Artist and Source Verification
+
+- [ ] Inspect available video descriptions and metadata for artist names, record labels, distributor credits, and copyright notices (©/℗).
+- [ ] Compare uploader channel IDs against a trusted mapping of confirmed artist and label channels; do not trust channel names alone.
+- [ ] Combine available evidence into source-confidence labels: Confirmed source, Likely official, or Unverified, with a brief explanation of the matching signals.
+- [ ] Treat description text, copyright symbols, and music credits as supporting evidence rather than proof of an official upload or original recording; leave missing or inconclusive metadata Unverified.
+- [ ] Add meaningful tests for trusted channel matches, copied or misleading credits, missing metadata, and conflicting artist information.
+
+### Shared Playback and Queue
+
+- [x] One audio element and playback provider mounted in the root layout to preserve playback across Home/Search navigation.
+- [x] Playback and queue state separated from search UI and track normalization.
+- [x] Play/pause, previous/next, volume, elapsed time, and duration controls.
+- [x] Seek control enabled when the browser reports a seekable resource and finite duration.
+- [x] In-memory queue retaining selected video IDs and metadata without repeating text searches.
+- [x] Queue additions preserve the active track and upcoming order; adding the first track loads it without autoplay.
+- [x] Playing a selection inserts it after the current track and preserves upcoming tracks; replaying the same video is supported.
+- [x] Advance to the next queued track when playback ends; respect queue boundaries without wrapping.
+- [x] Empty-player, empty-queue, end-of-queue, upcoming-track, and queued-count displays.
+- [x] Buffering and playback-failure messages with manual retry or skip controls.
+
+### Streaming and Server Safeguards
+
+- [x] `/api/stream/{videoId}` resolves and proxies audio, preferring M4A with fallback formats.
+- [x] Forward valid byte-range requests and upstream range/content headers to support seeking.
+- [x] Validate video IDs before subprocess calls and restrict resolved audio URLs to HTTPS Google video hosts.
+- [x] Shared server-side `yt-dlp` runner using separate arguments and no shell execution.
+- [x] Subprocess limits: 30-second timeout, 2 MiB combined output, and four concurrent processes per worker.
+- [x] Kill subprocesses on cancellation and release timers, listeners, and concurrency slots on completion.
+- [x] Upstream audio requests use cancellation signals and a 120-second timeout.
+- [x] Return structured errors for invalid input, unavailable services/tracks, busy workers, and timeouts.
+- [x] Optional `YT_DLP_PATH` configuration documented without secrets in `.env.example`.
+
+### Tests and Setup Documentation
+
+- [x] Unit tests for track normalization and canonical identity, queue order, replay, and queue boundaries.
+- [x] Unit tests for subprocess cancellation, missing executables, concurrency, output limits, failures, and timeouts.
+- [x] Browser smoke-test script covering live search/playback, seeking, keyboard controls, navigation persistence, mobile overflow, stale results, and empty/error states.
+- [x] Browser regression script for touch and keyboard search submission and player visibility at multiple viewport sizes.
+- [x] README setup instructions for Node.js, pnpm, `yt-dlp`, environment configuration, checks, and manual/browser validation.
+
+### Remaining Roadmap and Verification
+
+- [ ] Visible, interactive queue panel showing the current track and upcoming tracks in playback order.
+- [ ] Queue controls to play a queued track, remove tracks, reorder upcoming tracks, and clear upcoming tracks without interrupting current playback.
+- [ ] Responsive, keyboard-accessible queue UI with an empty state and meaningful tests for queue interactions.
+- [ ] Library screen, liked songs, personal playlists, and playlist operations with meaningful tests.
+- [ ] Persistent library storage, accounts, and cross-device access.
+- [ ] Listening history, recently played tracks, and featured playlists on Home.
+- [ ] Artist and album records when reliable metadata is available.
+- [ ] Verify seeking and duration against the actual audio source across supported browsers.
+- [ ] Validate desktop/mobile playback under slow connections, failed requests, and listener disconnects.
+- [ ] Complete the search-to-play-to-save browser journey once saving is implemented.
+- [ ] Confirm deployment requirements and select hosting that supports subprocesses and audio proxying.
+
+The five phases below remain the implementation roadmap. Test scripts listed above exist; this documentation update does not record a new test run.
 
 Build the app in five phases, with a working **search → play → save** experience as the first milestone.
 

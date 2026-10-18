@@ -14,6 +14,10 @@ Reference the PLAN.md file when creating the app
 
 Do not make the application in a single file, try to break it down into components
 
+Prefer using Shadcn components over writing your own from scratch
+
+When a test needs a headless browser, use edge
+
 ## Scope and Planning
 
 - Use PLAN.md as the implementation roadmap.
