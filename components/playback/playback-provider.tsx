@@ -41,7 +41,7 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     if (!audio || !track) return;
     audio.src = `/api/stream/${track.id}`;
     audio.load();
-    // A queued first track is loaded without starting playback.
+    // Only an explicit playback action promotes an upcoming track to current.
     if (queue.revision > 0) playAudio();
     // Queue additions must not reload or interrupt the active audio.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +66,8 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     next: () => dispatch({ type: "next" }),
     previous: () => dispatch({ type: "previous" }),
     toggle: () => {
-      if (playing) audioRef.current?.pause();
+      if (!track) dispatch({ type: "next" });
+      else if (playing) audioRef.current?.pause();
       else playAudio();
     },
     seek: (value: number) => {

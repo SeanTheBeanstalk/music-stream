@@ -20,7 +20,10 @@ export function MusicPlayer() {
               {p.track?.title ?? "Nothing playing yet"}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {p.track?.uploader ?? "Search for a track to get started"}
+              {p.track?.uploader ??
+                (upcoming.length
+                  ? "Press Play to start your queue"
+                  : "Search for a track to get started")}
             </p>
           </div>
           <div className="flex items-center gap-1">
@@ -36,7 +39,7 @@ export function MusicPlayer() {
             <Button
               size="icon"
               aria-label={p.playing ? "Pause" : "Play"}
-              disabled={!p.track}
+              disabled={!p.track && !upcoming.length}
               onClick={p.toggle}
             >
               {p.playing ? <Pause /> : <Play />}

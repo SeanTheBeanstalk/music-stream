@@ -54,10 +54,16 @@ test("queue boundaries do not wrap or start an empty queue", () => {
   assert.equal(queueReducer(emptyQueue, { type: "previous" }), emptyQueue);
   const queued = queueReducer(emptyQueue, { type: "enqueue", track: first });
   assert.equal(queued.revision, 0);
-  assert.equal(queued.index, 0);
-  assert.equal(queueReducer(queued, { type: "next" }), queued);
+  assert.equal(queued.index, -1);
+  assert.equal(queued.tracks[queued.index], undefined);
+  const started = queueReducer(queued, { type: "next" });
+  assert.equal(started.index, 0);
+  assert.equal(started.revision, 1);
+  assert.equal(queueReducer(started, { type: "next" }), started);
   const two = queueReducer(queued, { type: "enqueue", track: second });
-  const next = queueReducer(two, { type: "next" });
+  const next = queueReducer(queueReducer(two, { type: "next" }), {
+    type: "next",
+  });
   assert.equal(next.tracks[next.index], second);
   assert.equal(queueReducer(next, { type: "previous" }).index, 0);
 });
@@ -72,11 +78,52 @@ test("cancelled subprocess requests never launch", async () => {
 
 const third = { ...first, title: "Third" };
 function populatedQueue() {
-  return [first, second, third, first].reduce(
+  return [second, third, first].reduce(
+    (state, track) => queueReducer(state, { type: "enqueue", track }),
+    queueReducer(emptyQueue, { type: "play", track: first })
+  );
+}
+
+test("initial queued tracks stay upcoming until playback starts", () => {
+  const queued = [first, second, third].reduce(
     (state, track) => queueReducer(state, { type: "enqueue", track }),
     emptyQueue
   );
-}
+  assert.equal(queued.index, -1);
+  assert.equal(queued.revision, 0);
+  assert.deepEqual(queued.tracks.slice(queued.index + 1), [
+    first,
+    second,
+    third,
+  ]);
+  const started = queueReducer(queued, { type: "next" });
+  assert.equal(started.tracks[started.index], first);
+  assert.deepEqual(started.tracks.slice(started.index + 1), [second, third]);
+  const selected = queueReducer(queued, { type: "select", index: 2 });
+  assert.equal(selected.index, 0);
+  assert.equal(selected.tracks[selected.index], third);
+  assert.deepEqual(selected.tracks.slice(selected.index + 1), [first, second]);
+  const direct = queueReducer(queued, { type: "play", track: second });
+  assert.deepEqual(direct.tracks, [second, first, second, third]);
+  assert.equal(direct.index, 0);
+});
+
+test("upcoming tracks can be removed, reordered, and cleared before any playback", () => {
+  const queued = queueReducer(
+    queueReducer(emptyQueue, { type: "enqueue", track: first }),
+    { type: "enqueue", track: second }
+  );
+  const moved = queueReducer(queued, { type: "move", from: 1, to: 0 });
+  assert.deepEqual(moved.tracks, [second, first]);
+  const removed = queueReducer(moved, { type: "remove", index: 0 });
+  assert.deepEqual(removed.tracks, [first]);
+  const cleared = queueReducer(removed, { type: "clear-upcoming" });
+  assert.deepEqual(cleared, emptyQueue);
+  for (const state of [moved, removed, cleared]) {
+    assert.equal(state.index, -1);
+    assert.equal(state.revision, 0);
+  }
+});
 
 test("select queued occurrence without duplicating tracks, including repeated videos", () => {
   const queued = populatedQueue();

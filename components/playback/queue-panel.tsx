@@ -74,8 +74,9 @@ export function QueuePanel() {
               </div>
             ) : (
               <p className="text-muted-foreground">
-                Your queue is empty. Search for a track and choose Play or Add
-                to queue.
+                {upcoming.length
+                  ? "Nothing playing yet. Press Play or choose a track from Up next."
+                  : "Your queue is empty. Search for a track and choose Play or Add to queue."}
               </p>
             )}
           </section>

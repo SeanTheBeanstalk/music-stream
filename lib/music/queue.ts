@@ -68,7 +68,6 @@ export function queueReducer(
       return {
         ...state,
         tracks: [...state.tracks, action.track],
-        index: state.index < 0 ? 0 : state.index,
       };
     case "play": {
       const index = state.index + 1;

@@ -53,10 +53,13 @@ async function until(expression) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(
-    `Timed out: ${expression}; ${await evaluate("JSON.stringify({ active: document.activeElement.outerHTML, dialogs: document.querySelectorAll('[role=dialog]').length })")}`
+    `Timed out: ${expression}; ${await evaluate("JSON.stringify({ active: document.activeElement.outerHTML.slice(0, 500), dialogs: document.querySelectorAll('[role=dialog]').length, footer: document.querySelector('footer')?.textContent, queue: document.querySelector('button[aria-label^=\"Open queue\"]')?.getAttribute('aria-label') })")}`
   );
 }
 async function click(label) {
+  await until(
+    `Array.from(document.querySelectorAll('button')).some(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)})`
+  );
   await evaluate(
     `Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)}).click()`
   );
@@ -150,6 +153,25 @@ try {
   );
   await closeQueue();
   await add("Current");
+  await openQueue(1);
+  assert.deepEqual(await titles(), ["Current"]);
+  assert.equal(
+    await evaluate(
+      "!document.querySelector('[aria-current=true]') && window.audioLoads === 0 && !document.querySelector('audio').getAttribute('src')"
+    ),
+    true
+  );
+  await closeQueue();
+  await evaluate(
+    "document.querySelector('footer button[aria-label=Play]').focus()"
+  );
+  await key("Enter", 13);
+  await until(
+    "document.querySelector('footer p')?.textContent === 'Current' && window.audioLoads === 1"
+  );
+  console.log(
+    "PASS first addition stays upcoming without loading audio; keyboard Play starts it"
+  );
   await add("Second");
   await add("Third");
   await add("Second");

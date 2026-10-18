@@ -6,6 +6,9 @@ queue. Playback continues between Home and Search. Queue data stays in memory;
 likes, playlists, and persistence belong to the library phase.
 
 Open Queue from the bottom player to see the current track and upcoming tracks.
+Adding the first track leaves it in Up next without loading audio. Press the
+player's Play button to start the first upcoming track, or play any queued track
+directly from the queue panel.
 Play a queued selection, use the arrow buttons to reorder upcoming tracks,
 remove an upcoming track, or clear upcoming tracks while keeping current
 playback. All controls work with a keyboard; Escape closes the queue and

@@ -44,7 +44,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] Play/pause, previous/next, volume, elapsed time, and duration controls.
 - [x] Seek control enabled when the browser reports a seekable resource and finite duration.
 - [x] In-memory queue retaining selected video IDs and metadata without repeating text searches.
-- [x] Queue additions preserve the active track and upcoming order; adding the first track loads it without autoplay.
+- [x] Queue additions preserve the active track and upcoming order; the first track stays in Up next until Play makes it current.
 - [x] Playing a selection inserts it after the current track and preserves upcoming tracks; replaying the same video is supported.
 - [x] Advance to the next queued track when playback ends; respect queue boundaries without wrapping.
 - [x] Empty-player, empty-queue, end-of-queue, upcoming-track, and queued-count displays.
