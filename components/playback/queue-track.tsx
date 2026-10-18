@@ -2,7 +2,9 @@
 
 import { ArrowDown, ArrowUp, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatTime, type Track } from "@/lib/music/track";
+import { type Track } from "@/lib/music/track";
+import { TrackMetadata } from "@/components/music/track-metadata";
+import { trackDetails } from "@/lib/music/track-details";
 
 interface QueueTrackProps {
   track: Track;
@@ -23,7 +25,11 @@ export function QueueTrack({
   first,
   last,
 }: QueueTrackProps) {
-  const label = `${position}. ${track.title}`;
+  const details = trackDetails(track, {
+    showGenreAndYear: false,
+    showExplicitness: false,
+  });
+  const label = `${position}. ${details.title}`;
   return (
     <li className="border-b py-3" aria-label={label}>
       <div className="flex min-w-0 items-center gap-2">
@@ -36,16 +42,21 @@ export function QueueTrack({
           <Play aria-hidden="true" />
         </Button>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium" title={track.title}>
-            {track.title}
+          <p className="truncate font-medium" title={details.title}>
+            {details.title}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {track.uploader ?? "Unknown uploader"}
+          <p
+            className="truncate text-xs text-muted-foreground"
+            title={details.description}
+          >
+            {details.description}
           </p>
         </div>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {formatTime(track.duration)}
-        </span>
+        <TrackMetadata
+          catalog={track.catalog}
+          source={track}
+          label={`Track details for queued track ${label}`}
+        />
       </div>
       <div className="mt-1 flex justify-end gap-1">
         <Button

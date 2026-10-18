@@ -13,10 +13,17 @@ import {
 } from "@/components/ui/sheet";
 import { usePlayback } from "@/components/playback/playback-provider";
 import { QueueTrack } from "@/components/playback/queue-track";
-import { formatTime } from "@/lib/music/track";
+import { TrackMetadata } from "@/components/music/track-metadata";
+import { trackDetails } from "@/lib/music/track-details";
 
 export function QueuePanel() {
   const p = usePlayback();
+  const currentDetails = p.track
+    ? trackDetails(p.track, {
+        showGenreAndYear: false,
+        showExplicitness: false,
+      })
+    : null;
   const upcoming = p.queue.tracks.slice(p.queue.index + 1);
   const [announcement, setAnnouncement] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
@@ -50,11 +57,22 @@ export function QueuePanel() {
             </h3>
             {p.track ? (
               <div className="border bg-muted/40 p-4" aria-current="true">
-                <p className="font-medium break-words">{p.track.title}</p>
-                <p className="mt-1 text-xs break-words text-muted-foreground">
-                  {p.track.uploader ?? "Unknown uploader"} ·{" "}
-                  {formatTime(p.track.duration)}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium break-words">
+                      {currentDetails?.title}
+                    </p>
+                    <p className="mt-1 text-xs break-words text-muted-foreground">
+                      {currentDetails?.description}
+                    </p>
+                  </div>
+                  <TrackMetadata
+                    catalog={p.track.catalog}
+                    source={p.track}
+                    audioDuration={p.duration}
+                    label={`Track details for current track ${currentDetails?.title}`}
+                  />
+                </div>
                 <Button
                   className="mt-3"
                   variant="outline"
@@ -118,20 +136,22 @@ export function QueuePanel() {
                       last={offset === upcoming.length - 1}
                       onPlay={() => {
                         p.playQueued(index);
-                        setAnnouncement(`Selected ${track.title}.`);
+                        setAnnouncement(
+                          `Selected ${trackDetails(track).title}.`
+                        );
                         heading.current?.focus();
                       }}
                       onRemove={() => {
                         p.removeQueued(index);
                         setAnnouncement(
-                          `Removed ${track.title} from the queue.`
+                          `Removed ${trackDetails(track).title} from the queue.`
                         );
                         heading.current?.focus();
                       }}
                       onMove={(direction) => {
                         p.moveQueued(index, index + direction);
                         setAnnouncement(
-                          `Moved ${track.title} to position ${offset + 1 + direction}.`
+                          `Moved ${trackDetails(track).title} to position ${offset + 1 + direction}.`
                         );
                         heading.current?.focus();
                       }}

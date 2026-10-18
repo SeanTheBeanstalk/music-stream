@@ -104,7 +104,7 @@ try {
   assert.equal(
     await evaluate("!!document.querySelector('article')"),
     true,
-    "Live YouTube search should return a track"
+    "Live iTunes search should return tracks"
   );
   console.log("PASS live search and desktop layout");
   await evaluate(
@@ -192,7 +192,7 @@ try {
   console.log("PASS mobile layout without horizontal overflow");
   // Resolve mocked requests out of order, even when cancellation is ignored.
   await evaluate(
-    `window.realFetch = window.fetch; window.fetch = (url, options) => String(url).startsWith('/api/search') ? new Promise(resolve => setTimeout(() => resolve(new Response(JSON.stringify({ track: { id: 'dQw4w9WgXcQ', title: String(url).includes('slow') ? 'Stale result' : 'Latest result', artwork: '', uploader: null, duration: 10, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } }), { status: 200, headers: { 'Content-Type': 'application/json' } })), String(url).includes('slow') ? 1500 : 10)) : realFetch(url, options)`
+    `window.realFetch = window.fetch; window.fetch = (url, options) => String(url).startsWith('/api/search') ? new Promise(resolve => setTimeout(() => resolve(new Response(JSON.stringify({ tracks: [{ id: 'itunes:123', trackId: 123, country: 'US', artist: { name: 'Test' }, album: { name: 'Album', releaseDate: null }, title: String(url).includes('slow') ? 'Stale result' : 'Latest result', artwork: '', uploader: null, duration: 10, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })), String(url).includes('slow') ? 1500 : 10)) : realFetch(url, options)`
   );
   await submit("slow");
   await submit("fast");
@@ -207,7 +207,7 @@ try {
   assert.equal(await evaluate("savedAudio.src"), source);
   console.log("PASS stale search suppression and uninterrupted audio source");
   await evaluate(
-    "window.fetch = async () => new Response(JSON.stringify({track:null}), {status:200})"
+    "window.fetch = async () => new Response(JSON.stringify({tracks:[]}), {status:200})"
   );
   await submit("empty");
   await until("document.body.textContent.includes('No track found')");

@@ -3,36 +3,49 @@ import { useEffect, useRef, useState } from "react";
 import { Search, LoaderCircle } from "lucide-react";
 import { SearchInput } from "./search-input";
 import { SearchResult } from "./search-result";
-import type { Track } from "@/lib/music/track";
+import {
+  STOREFRONTS,
+  type CatalogTrack,
+  type Storefront,
+} from "@/lib/music/catalog";
 type SearchState = {
   status: "initial" | "loading" | "empty" | "error" | "success";
-  track?: Track;
+  tracks?: CatalogTrack[];
   message?: string;
   query?: string;
 };
-export function SearchView() {
+export function SearchView({ defaultCountry }: { defaultCountry: Storefront }) {
+  const [country, setCountry] = useState(defaultCountry);
   const [state, setState] = useState<SearchState>({ status: "initial" });
   const pending = useRef<AbortController | null>(null);
-  useEffect(() => () => pending.current?.abort(), []);
+  const pendingActionRef = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      pending.current?.abort();
+      pendingActionRef.current?.abort();
+    },
+    []
+  );
   async function search(query: string) {
     pending.current?.abort();
+    pendingActionRef.current?.abort();
     const controller = new AbortController();
     pending.current = controller;
     setState({ status: "loading", query });
     try {
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query)}`,
+        `/api/search?${new URLSearchParams({ q: query, country })}`,
         { signal: controller.signal }
       );
       const data = await response.json();
       if (controller.signal.aborted) return;
       if (!response.ok)
         throw new Error(data.error || "Search failed. Please try again.");
-      setState(
-        data.track
-          ? { status: "success", track: data.track, query }
-          : { status: "empty", query }
-      );
+      setState({
+        status: data.tracks.length ? "success" : "empty",
+        tracks: data.tracks,
+        query,
+      });
     } catch (error) {
       if (!controller.signal.aborted)
         setState({
@@ -55,17 +68,43 @@ export function SearchView() {
           Search
         </h1>
         <p className="max-w-xl text-muted-foreground">
-          A song you love. An artist you just discovered. Start with a search.
+          Search the iTunes catalog by song, artist, or album. Play a matching
+          YouTube upload.
         </p>
       </header>
-      <SearchInput loading={state.status === "loading"} onSearch={search} />
+      <SearchInput
+        loading={state.status === "loading"}
+        onSearch={search}
+        country={country}
+        onCountryChange={(value) => {
+          pending.current?.abort();
+          pendingActionRef.current?.abort();
+          setCountry(value);
+          setState({ status: "initial" });
+        }}
+      />
       <p className="text-xs text-muted-foreground">
-        We select the first YouTube result. Check the upload before pressing
-        Play.
+        Catalog: iTunes &middot; {STOREFRONTS[country]}. Playback: YouTube.
+        Uncertain matches will require another selection.
       </p>
-      <div aria-live="polite" aria-busy={state.status === "loading"}>
-        {state.status === "success" && state.track ? (
-          <SearchResult track={state.track} />
+      <div
+        aria-live="polite"
+        aria-busy={state.status === "loading"}
+        className="space-y-4"
+      >
+        {state.status === "success" ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {state.tracks!.length} songs found
+            </p>
+            {state.tracks!.map((track) => (
+              <SearchResult
+                key={`${track.country}:${track.id}`}
+                track={track}
+                pendingActionRef={pendingActionRef}
+              />
+            ))}
+          </>
         ) : (
           <div className="flex min-h-60 flex-col items-center justify-center gap-4 border border-dashed p-8 text-center">
             {state.status === "loading" ? (
@@ -83,7 +122,7 @@ export function SearchView() {
               {state.status === "initial"
                 ? "Your next track is a search away"
                 : state.status === "loading"
-                  ? "Searching YouTube…"
+                  ? "Searching iTunes..."
                   : state.status === "empty"
                     ? "No track found"
                     : "Unable to search"}
@@ -92,9 +131,9 @@ export function SearchView() {
               {state.status === "error"
                 ? state.message
                 : state.status === "empty"
-                  ? `No result for “${state.query}”. Try another song or artist.`
+                  ? `No result for "${state.query}". Try another song, artist, or storefront.`
                   : state.status === "initial"
-                    ? "Search by song, artist, or album to find a track to play or queue."
+                    ? "Search to find a track to play or queue."
                     : "Your current music will keep playing."}
             </p>
           </div>

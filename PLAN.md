@@ -2,7 +2,7 @@
 
 ## Current Foundation
 
-The repository has a Next.js/TypeScript foundation, Tailwind styling, responsive Home and Search screens, a shared audio player with an interactive queue panel, and YouTube search, metadata, and audio streaming routes backed by `yt-dlp`. The next search revision will use the Spotify Web API for catalog metadata and use that metadata to select a matching YouTube video for playback. Spotify integration, library features, and persistent storage are still planned.
+The repository has a Next.js/TypeScript foundation, Tailwind styling, responsive Home and Search screens, a shared audio player with an interactive queue panel, and YouTube search, metadata, and audio streaming routes backed by `yt-dlp`. Search now uses the iTunes Search API for structured catalog metadata and resolves selected tracks to title-and-artist YouTube matches on demand, retaining YouTube for playback. Planned work also includes library features and persistent storage.
 
 ## Feature Checklist
 
@@ -20,37 +20,14 @@ Checked items are implemented in the current working tree. They do not imply tha
 ### Existing Search Foundation
 
 - [x] Submit a song, artist, or album query with Enter or the Search button; no search subprocess on each keystroke.
-- [x] Current `/api/search?q=...` resolves the first YouTube result through `yt-dlp` without downloading audio; replace this selection strategy with the planned Spotify-guided matching below.
+- [x] Original YouTube search foundation retained in the on-demand resolver; `/api/search` now returns iTunes catalog results.
 - [x] Trim and validate queries, rejecting empty, oversized, and control-character input.
 - [x] Normalize tracks with a validated video ID, canonical watch URL, title, artwork, and optional uploader and duration.
-- [x] Preview the selected upload with artwork, metadata, and a link to YouTube before playing.
+- [x] Inspect the selected upload title, uploader, and YouTube link after catalog source resolution.
 - [x] Play and Add to queue actions with queue confirmation feedback.
 - [x] Initial, loading, no-result, success, and recoverable search-error states.
 - [x] Cancel superseded searches and requests on unmount; prevent stale results from replacing the latest search.
-- [x] Current `/api/metadata/{videoId}` retrieves normalized YouTube metadata for a validated video ID; retain it for playback-source inspection, with Spotify supplying catalog metadata after migration.
-
-### Planned Spotify Metadata and YouTube Matching
-
-- [ ] Search the Spotify Web API from a server-only module and resolve the submitted song, artist, or album query to a track before searching YouTube.
-- [ ] Use Spotify track IDs, title, artists, album, artwork, duration, Spotify URL, and ISRC when available as catalog metadata. Keep missing fields optional and include a link back to the Spotify track with its metadata/artwork.
-- [ ] Configure server-only `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`, document placeholder names in `.env.example`, and obtain/reuse access tokens through the Client Credentials flow. Never expose credentials or tokens to the browser.
-- [ ] Construct the YouTube query from the resolved Spotify title, artist names, and relevant version qualifiers, rather than forwarding only the original user query.
-- [ ] Retrieve a bounded set of YouTube candidates (initially five) and rank them by title/artist agreement, version agreement, and duration proximity to the Spotify track; use verified artist/label channel evidence as an additional signal.
-- [ ] Penalize covers, live performances, remixes, karaoke, sped-up/slowed edits, and unrelated uploads unless the selected Spotify track explicitly identifies that version. Do not discard version qualifiers during normalization.
-- [ ] Select the highest-confidence candidate rather than the first YouTube result. Define and test a minimum match threshold; return a clear no-reliable-match state when candidates are weak or ambiguous.
-- [ ] Return Spotify catalog metadata alongside a separate YouTube playback-source record containing video ID, URL, upload title, uploader/channel evidence, actual video duration, and match confidence/reasons.
-- [ ] Keep Spotify catalog duration separate from actual audio duration; use the browser's audio duration and seekable ranges for playback controls.
-- [ ] Handle missing credentials, token expiry, Spotify rate limits (`Retry-After`), unavailable catalog tracks, no Spotify results, and no reliable YouTube match. Keep retries bounded and cancel superseded Spotify and YouTube requests.
-- [ ] Add meaningful tests for Spotify response normalization, token handling, rate limits, candidate ranking, version/duration mismatches, ambiguous matches, cancellation, and preserving playback during search.
-
-### Planned Artist and Source Verification
-
-- [ ] Inspect available video descriptions and metadata for artist names, record labels, distributor credits, and copyright notices (©/℗).
-- [ ] Compare candidate video evidence with the resolved Spotify title, artists, version, and duration; a catalog match alone does not confirm that an uploader is official.
-- [ ] Compare uploader channel IDs against a trusted mapping of confirmed artist and label channels; do not trust channel names alone.
-- [ ] Combine available evidence into source-confidence labels: Confirmed source, Likely official, or Unverified, with a brief explanation of the matching signals.
-- [ ] Treat description text, copyright symbols, and music credits as supporting evidence rather than proof of an official upload or original recording; leave missing or inconclusive metadata Unverified.
-- [ ] Add meaningful tests for trusted channel matches, copied or misleading credits, missing metadata, and conflicting artist information.
+- [x] Current `/api/metadata/{videoId}` retrieves normalized YouTube metadata for a validated video ID; retain it for playback-source inspection.
 
 ### Shared Playback and Queue
 
@@ -91,64 +68,77 @@ Checked items are implemented in the current working tree. They do not imply tha
 
 ### Remaining Roadmap and Verification
 
+- [x] iTunes catalog search through a validated, cached server route, with storefront selection and rate-limit handling.
+- [x] Structured iTunes track metadata in search results, with separate catalog and playback identities.
+- [x] Resolve selected catalog tracks to matching YouTube uploads on Play or Add to queue, selecting the highest YouTube result matching the title and artist.
+- [x] Reviewed Apple promotional-asset conditions; iTunes artwork and previews stay disabled, with placeholders used in catalog results. Permission for artwork in this playback UI remains unresolved.
 - [ ] Library screen, liked songs, personal playlists, and playlist operations with meaningful tests.
 - [ ] Persistent library storage, accounts, and cross-device access.
 - [ ] Listening history, recently played tracks, and featured playlists on Home.
-- [ ] Artist and album records populated from Spotify catalog metadata, with separate YouTube playback-source mappings.
+- [x] Artist and album records populated from structured iTunes metadata, leaving missing fields unknown and retaining source provenance and storefront.
 - [ ] Verify seeking and duration against the actual audio source across supported browsers.
 - [ ] Validate desktop/mobile playback under slow connections, failed requests, and listener disconnects.
 - [ ] Complete the search-to-play-to-save browser journey once saving is implemented.
 - [ ] Confirm deployment requirements and select hosting that supports subprocesses and audio proxying.
 
-The five phases below remain the implementation roadmap. Test scripts listed above exist; this documentation update does not record a new test run.
+The five phases below remain the implementation roadmap. The catalog integration is implemented; live audio reliability, library storage, and deployment verification remain open. Search supports a curated set of storefronts; JSON caches and coalescing are worker-local, and static worker budgets require ITUNES_WORKER_COUNT configuration across every worker.
 
 Build the app in five phases, with a working **search → play → save** experience as the first milestone.
 
-## 1. Use Spotify Metadata to Match YouTube Playback
+## 1. Add iTunes Catalog Metadata and YouTube Matching
 
-The target search flow resolves the user's query through the Spotify Web API, then uses the selected track's title, artists, version, and duration to find and rank matching YouTube videos. Spotify supplies catalog metadata; the existing `yt-dlp` integration continues to resolve YouTube candidates and audio streams.
+Use the iTunes Search API to search for songs by song, artist, or album text and present structured catalog metadata in the frontend. Keep YouTube as the audio source through the existing `yt-dlp` integration. The checked search items above describe the current YouTube implementation; the iTunes integration and matching flow below are now implemented.
 
-Keep Spotify catalog identity separate from YouTube playback identity. Resolve the best matching video ID and construct its canonical watch URL as `https://www.youtube.com/watch?v={videoId}`. Keep both integrations in server-only modules, separate from UI and playback state. Reference the official [Spotify track schema](https://developer.spotify.com/documentation/web-api/reference/get-track) for available metadata fields.
+Keep both integrations in server-only modules, separate from UI and playback state. Request `https://itunes.apple.com/search` with encoded parameters such as `term`, `media=music`, `entity=song`, a bounded `limit`, and an explicitly selected two-letter `country` storefront. Make the storefront configurable and include it in cache keys. No Apple Music API integration or developer token is required for this Search API flow.
 
-The current routes still use YouTube's first result and remain a prototype until the planned matching flow, playback reliability, and deployment requirements are verified. This roadmap changes the metadata provider to Spotify while retaining YouTube as the playback source.
+Normalize iTunes track ID, title, artist ID/name, album ID/name, catalog duration, genre, explicitness, available release date, store URL, and permitted artwork URL. Leave missing fields unknown. Use bounded caching for search and lookup JSON, deduplicate concurrent requests, and handle upstream failures and throttling. Apple documents approximately 20 calls per minute, subject to change; budget calls across requests and account for multiple app workers rather than assuming each user has an independent allowance.
+
+Resolve a selected catalog track to a YouTube upload only when Play or Add to queue needs a playback source. Search for the iTunes artist and title, then choose the first of up to five YouTube results containing the normalized title in the video title and artist in the title or uploader. Preserve YouTube search order. Duration, version markers, explicitness, and uploader-name preference do not filter or reorder candidates. If no title-and-artist match exists, return a clear no-match state and leave the current player and queue unchanged. Keep matching criteria explicit and covered by tests.
+
+Store the validated selected video ID and canonical watch URL (`https://www.youtube.com/watch?v={videoId}`) separately from catalog metadata. Retain `/api/metadata/{videoId}` for playback-source inspection. Show the selected upload's title, uploader, and YouTube link alongside catalog details once resolved, so users can inspect the source. Playback reliability and deployment requirements still need verification.
+
+### Apple Asset Use
+
+Apple's [Search API documentation and usage conditions](https://performance-partners.apple.com/search-api) restrict promotional assets, including artwork and previews, to permitted promotional contexts with required store links/badges and applicable attribution. Confirm the intended UI meets those conditions before enabling iTunes artwork; a store link alone should not be assumed sufficient. Use existing placeholders when permission is unresolved. Do not download, cache, or proxy artwork without confirming applicable permissions. Do not add iTunes audio previews in this phase or treat them as full-track audio. Cache catalog JSON separately from promotional media assets.
 
 ## 2. Build the First Usable Version
 
 Start with three screens:
 
 - **Home:** featured playlists and recently played tracks as library data becomes available.
-- **Search:** submit a song, artist, or album query, resolve Spotify catalog metadata, and preview the best matching YouTube upload as a playable track.
+- **Search:** submit a song, artist, or album query and display iTunes song results with title, artist, album, catalog duration, store link, and permitted artwork or a placeholder. Show YouTube source details once a selection is resolved for playback.
 - **Library:** liked songs and personal playlists.
 
 Use a persistent player across navigation, with play/pause, previous/next, seeking, volume, and a queue. Adapt the existing `MusicPlayer` component.
 
 ### Search Implementation
 
-1. Build separate search input, result, and track-action components using existing UI primitives. Submit on Enter or the Search button; do not launch a subprocess on every keystroke.
-2. Update `/api/search?q=...`. Trim the query, reject empty, oversized, or control-character input, and resolve a Spotify track through a server-only client. Rank catalog matches against the requested title, artist, album, and version; report ambiguity rather than choosing an unrelated track. Normalize the selected Spotify metadata before resolving playback.
-3. Build a YouTube query from Spotify title, artists, and version qualifiers. Run `yt-dlp` with `ytsearch5:{metadataQuery}` without downloading audio and rank the candidates by title/artist similarity, version agreement, duration proximity, and available trusted channel evidence. Pass arguments separately to `spawn`; never construct a shell command from user input or external metadata. Reject candidates below a tested confidence threshold.
-4. Return Spotify catalog metadata and a separate selected YouTube source record. Preview the Spotify title, artists, album, and artwork with a Spotify link, plus the upload title, YouTube link, and match explanation. Provide Play and Add to queue actions only when a reliable playback match exists. Connect Like and Add to playlist when library operations are implemented.
-5. Send `/api/stream/{videoId}` to one shared player mounted in the app layout. Extract shared playback and queue state from the current player so search actions can control it without remounting the audio element.
-6. Handle initial, loading, no-Spotify-result, no-reliable-video-match, and error states, including Spotify authentication and rate-limit failures. Cancel superseded requests across both integrations and prevent stale responses from replacing the latest result. Searching or navigating must not interrupt the current track.
-7. Enforce subprocess timeouts, output and concurrency limits, and cleanup on cancellation. Validate resolved video IDs before passing them to the metadata or streaming routes.
+1. Reuse separate search input, result, and track-action components and existing UI primitives. Submit on Enter or the Search button; do not request upstream searches on every keystroke.
+2. Update `/api/search?q=...&country=...` to return normalized iTunes song results. Trim and validate queries, reject empty, oversized, or control-character input, and validate the storefront. Use timeouts, cancellation, bounded result counts, caching, and structured upstream-error responses.
+3. Add a server-side playback-resolution route accepting a validated iTunes track ID and storefront. Obtain trusted catalog fields through lookup/cache rather than trusting client-supplied matching metadata. Search YouTube for bounded candidates without downloading audio. Pass arguments separately to `spawn`; never construct shell commands from user input or external metadata.
+4. Match candidates using the criteria in phase 1 and return catalog metadata plus a separate selected YouTube source. Provide resolving, no-match, unavailable-source, and retry states. Resolve before inserting a new catalog selection into the playable queue; coalesce duplicate resolution requests and prevent stale or cancelled actions from changing playback. Connect Like and Add to playlist when library operations are implemented; saving catalog metadata alone need not resolve audio.
+5. Send `/api/stream/{videoId}` to the existing shared player mounted in the app layout. Preserve the audio element, playback state, and queue across navigation. Use the browser-reported audio duration and seekable ranges for playback controls; iTunes duration is catalog metadata and may differ from the selected upload.
+6. Handle initial, loading, no-result, throttled, and recoverable search-error states. Cancel superseded requests and prevent stale responses from replacing the latest result. A catalog outage or failed match must not interrupt existing playback or discard queued tracks with stored video IDs.
+7. Preserve subprocess timeouts, output and concurrency limits, and cleanup on cancellation. Validate resolved video IDs before passing them to the metadata or streaming routes. Keep existing YouTube-only queue entries playable during the transition.
 
-Evaluate multiple YouTube candidates internally from the start. Defer user-facing alternate-result selection controls until automatic matching works reliably.
+For the interface, use a desktop sidebar, mobile navigation, permitted album artwork or placeholders, and a bottom player.
 
-For the interface, use a desktop sidebar, mobile navigation, album artwork, and a bottom player.
-
-**Completion check:** a user can find a track, play it, navigate elsewhere without interrupting playback, and queue another song.
+**Completion check:** a user can find an iTunes catalog track, resolve a suitable YouTube source, play it, navigate elsewhere without interrupting playback, and queue another song. Uncertain matches produce a recoverable no-match state.
 
 ## 3. Add Catalog and Library Data
 
 Define these core records:
 
 - `Track`, `Artist`, and `Album`
+- Separate playback-source records mapping catalog tracks to validated YouTube video IDs
 - `Playlist` and ordered playlist tracks
 - User likes and listening history
 
-Use Spotify track identity and catalog metadata, with a separate mapping to the selected YouTube playback source. Store the Spotify track ID, metadata snapshot, selected video ID, and match evidence when queuing, liking, or saving a track; do not repeat the text search to identify a saved track. Refresh catalog metadata by Spotify ID and resolve playback from the stored video ID as needed. If a video becomes unavailable, rematch using the saved Spotify identity and metadata. Any sample catalog used for UI development must stay separate from the production integration.
+Use a provider-qualified iTunes track ID as catalog identity and retain storefront context for availability, lookup, and matching. Keep the YouTube video ID as playback-source identity, and retain independent queue-entry IDs so repeated tracks remain distinct. Store catalog metadata, provenance, and the selected source mapping when available; do not repeat text searches to identify saved tracks or silently replace an existing video mapping. Catalog-only likes and playlist entries can resolve their source on first playback. Preserve existing YouTube-only entries with their original video IDs and metadata without inventing iTunes matches.
 
-Add persistent storage and accounts once the playback flow works. Keep playback state separate from catalog and library data. Populate artist and album records from Spotify IDs and metadata as library features are implemented.
+Refresh catalog metadata by iTunes ID and storefront and resolve audio from the stored video ID as needed. If a video becomes unavailable, show an unavailable state with an explicit retry/rematch action; do not silently select a different recording. Keep sample catalog data separate from production integrations.
+
+Add persistent storage and accounts once the playback flow works. Keep playback state separate from catalog and library data. Populate artist and album records from structured iTunes metadata, leave missing fields unknown, and retain provider IDs, storefront, and provenance. Keep YouTube upload metadata separate from catalog fields.
 
 **Completion check:** playlists and likes survive a reload; signed-in users retain them across devices.
 
@@ -157,6 +147,8 @@ Add persistent storage and accounts once the playback flow works. Keep playback 
 Validate the audio source early:
 
 - Verify seeking and duration reporting.
+- Use actual audio duration for playback controls even when it differs from iTunes catalog duration.
+- Preserve resolved playback during iTunes outages and handle failed or uncertain source matching without interrupting the current track.
 - Show buffering, unavailable-track, and playback-error states.
 - Handle failed tracks and queue transitions.
 - Clean up streams when listeners disconnect.
@@ -174,10 +166,12 @@ Run the existing checks:
 
 Add focused tests for queue behavior, playlist operations, and a browser journey covering search → play → save. Check keyboard controls, mobile layouts, and playback persistence during navigation.
 
-Cover query validation, Spotify normalization and authentication, rate limits, no catalog results, candidate ranking, wrong versions, duration differences, weak/ambiguous matches, subprocess failures and timeouts, cancellation, and stale-response handling. Verify that saved tracks retain both Spotify identity and the selected video ID, and that searches leave existing playback intact. Use Edge for browser tests.
+Cover query and storefront validation, iTunes response normalization, missing metadata, empty results, cache keys and bounds, request deduplication, throttling, upstream failures, subprocess failures and timeouts, cancellation, and stale-response handling. Test title/artist matching, YouTube result order, normalization, no matches, and acceptance of different versions and missing durations. Verify that saved tracks retain catalog identity, storefront, metadata, and any selected video mapping; repeated queue entries and legacy YouTube-only entries must remain valid. Verify catalog-only saves, explicit rematching, actual-source duration, and continued playback during catalog outages. Use Edge for browser tests.
 
 Choose hosting after confirming the audio delivery requirements.
 
 ## First Implementation Scope
 
-Retain the responsive app shell and persistent playback with a shared queue. Replace first-result YouTube search with Spotify catalog lookup followed by metadata-guided YouTube candidate ranking. Connect saving through the library phase. Defer user-facing alternate-result selection, subscriptions, recommendations, social features, and offline downloads until that core experience is dependable.
+Implement iTunes song search and frontend metadata with server-side caching, then add on-demand YouTube matching while retaining the responsive app shell and persistent player with a shared queue. Confirm promotional-asset permissions before enabling iTunes artwork; use placeholders otherwise. Connect saving through the library phase. Defer iTunes previews, standalone artist/album browsing, user-facing alternate-source selection, subscriptions, recommendations, social features, and offline downloads until the core experience is dependable.
+
+Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist, album and explicitness, omitting genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Artwork remains disabled under the existing asset-use policy.

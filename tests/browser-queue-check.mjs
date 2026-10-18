@@ -111,6 +111,9 @@ async function add(title) {
     `document.querySelector('article h2')?.textContent === ${JSON.stringify(title)}`
   );
   await click("Add to queue");
+  await until(
+    "document.querySelector('article').textContent.includes('Added to queue')"
+  );
 }
 const repeatLabels = {
   off: "Repeat: Off. Switch to Repeat track.",
@@ -144,10 +147,15 @@ try {
     HTMLMediaElement.prototype.pause = function() { this.dispatchEvent(new Event('pause')); };
     const realFetch = window.fetch;
     window.fetch = (url, options) => String(url).startsWith('/api/search')
-      ? Promise.resolve(new Response(JSON.stringify({ track: {
+      ? Promise.resolve(Response.json({ tracks: [{
+          id: 'itunes:123', trackId: 123, provider: 'itunes', country: 'US', title: window.testTitle,
+          artist: { id: 1, name: 'Test artist' }, album: { id: 2, name: 'Test album', releaseDate: null }, duration: 120, genre: null, explicitness: null, storeUrl: null
+        }] }))
+      : String(url).startsWith('/api/resolve')
+      ? Promise.resolve(Response.json({ track: {
           id: 'dQw4w9WgXcQ', title: window.testTitle, uploader: 'Test uploader',
           artwork: '', duration: 120, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-        }}), { headers: { 'Content-Type': 'application/json' }}))
+        }}))
       : realFetch(url, options);
   `,
   });

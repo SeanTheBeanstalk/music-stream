@@ -1,4 +1,5 @@
 export interface Track {
+  catalog?: import("./catalog").CatalogTrack;
   id: string;
   url: string;
   title: string;

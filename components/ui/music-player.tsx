@@ -3,12 +3,16 @@ import { Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlayback } from "@/components/playback/playback-provider";
 import { formatTime } from "@/lib/music/track";
+import { trackDetails } from "@/lib/music/track-details";
 import { QueuePanel } from "@/components/playback/queue-panel";
 import { RepeatControl } from "@/components/playback/repeat-control";
 
 export function MusicPlayer() {
   const p = usePlayback();
   const upcoming = p.queue.tracks.slice(p.queue.index + 1);
+  const details = p.track
+    ? trackDetails(p.track, { showGenreAndYear: false })
+    : null;
   return (
     <footer
       aria-label="Music player"
@@ -17,11 +21,17 @@ export function MusicPlayer() {
       <div className="mx-auto flex max-w-7xl flex-col gap-3">
         <div className="flex items-center gap-4">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">
-              {p.track?.title ?? "Nothing playing yet"}
+            <p
+              className="truncate text-sm font-semibold"
+              title={details?.title}
+            >
+              {details?.title ?? "Nothing playing yet"}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {p.track?.uploader ??
+            <p
+              className="truncate text-xs text-muted-foreground"
+              title={details?.description}
+            >
+              {details?.description ??
                 (upcoming.length
                   ? "Press Play to start your queue"
                   : "Search for a track to get started")}
@@ -83,7 +93,7 @@ export function MusicPlayer() {
             onChange={(e) => p.seek(Number(e.target.value))}
             className="min-w-0 flex-1 accent-current"
           />
-          <span>{formatTime(p.duration || p.track?.duration || null)}</span>
+          <span>{formatTime(p.duration || null)}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <p role="status" className="min-w-0 text-xs text-muted-foreground">
@@ -93,7 +103,7 @@ export function MusicPlayer() {
                 : p.track && p.repeatMode === "track"
                   ? "Repeating current track"
                   : upcoming.length
-                    ? `Up next: ${upcoming[0].title} (${upcoming.length} queued)`
+                    ? `Up next: ${trackDetails(upcoming[0]).title} (${upcoming.length} queued)`
                     : p.track
                       ? p.repeatMode === "queue"
                         ? "Queue will repeat"
