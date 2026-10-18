@@ -61,7 +61,11 @@ async function click(label) {
     `Array.from(document.querySelectorAll('button')).some(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)})`
   );
   await evaluate(
-    `Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)}).click()`
+    `(() => {
+      const button = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)});
+      button.focus();
+      button.click();
+    })()`
   );
 }
 async function keyboardClick(label) {
@@ -92,11 +96,8 @@ async function openQueue(count) {
 async function closeQueue() {
   await key("Escape", 27);
   await until("!document.querySelector('[role=dialog]')");
-  assert.equal(
-    await evaluate(
-      "document.activeElement.getAttribute('aria-label')?.startsWith('Open queue')"
-    ),
-    true
+  await until(
+    "document.activeElement.getAttribute('aria-label')?.startsWith('Open queue')"
   );
 }
 async function add(title) {
@@ -110,6 +111,22 @@ async function add(title) {
     `document.querySelector('article h2')?.textContent === ${JSON.stringify(title)}`
   );
   await click("Add to queue");
+}
+const repeatLabels = {
+  off: "Repeat: Off. Switch to Repeat track.",
+  track: "Repeat track. Switch to Repeat queue.",
+  queue: "Repeat queue. Switch to Repeat: Off.",
+};
+async function ended(restarts = true) {
+  const loads = await evaluate("window.audioLoads");
+  await evaluate(
+    "document.querySelector('audio').dispatchEvent(new Event('ended'))"
+  );
+  if (restarts) await until(`window.audioLoads === ${loads + 1}`);
+  else {
+    await until("!!document.querySelector('footer button[aria-label=Play]')");
+    assert.equal(await evaluate("window.audioLoads"), loads);
+  }
 }
 const titles = () =>
   evaluate(
@@ -152,6 +169,10 @@ try {
     true
   );
   await closeQueue();
+  for (const mode of ["off", "track", "queue"]) {
+    await ended(false);
+    await keyboardClick(repeatLabels[mode]);
+  }
   await add("Current");
   await openQueue(1);
   assert.deepEqual(await titles(), ["Current"]);
@@ -172,7 +193,65 @@ try {
   console.log(
     "PASS first addition stays upcoming without loading audio; keyboard Play starts it"
   );
+  await ended(false);
+  await keyboardClick(repeatLabels.off);
+  await ended();
+  assert.equal(
+    await evaluate("document.querySelector('footer p').textContent"),
+    "Current"
+  );
+  await keyboardClick(repeatLabels.track);
+  await ended();
+  console.log(
+    "PASS empty queue, Off at boundary, Repeat track and single-track Repeat queue"
+  );
   await add("Second");
+  await keyboardClick(repeatLabels.queue);
+  await keyboardClick(repeatLabels.off);
+  await ended();
+  assert.equal(
+    await evaluate("document.querySelector('footer p').textContent"),
+    "Current",
+    "Repeat track must preserve upcoming tracks"
+  );
+  const errorLoads = await evaluate("window.audioLoads");
+  await evaluate(
+    "document.querySelector('audio').dispatchEvent(new Event('error'))"
+  );
+  await until(
+    "document.querySelector('footer').textContent.includes('This track could not be loaded')"
+  );
+  assert.equal(await evaluate("window.audioLoads"), errorLoads);
+  await evaluate(
+    "document.querySelector('footer button[aria-label=Play]').click()"
+  );
+  await keyboardClick(repeatLabels.track);
+  await ended();
+  assert.equal(
+    await evaluate("document.querySelector('footer p').textContent"),
+    "Second"
+  );
+  await ended();
+  assert.equal(
+    await evaluate("document.querySelector('footer p').textContent"),
+    "Current"
+  );
+  const repeatLoads = await evaluate("window.audioLoads");
+  await evaluate("document.querySelector('a[href=\"/\"]').click()");
+  await until("location.pathname === '/'");
+  assert.equal(
+    await evaluate(
+      `!!document.querySelector('button[aria-label="${repeatLabels.queue}"]') && window.audioLoads === ${repeatLoads}`
+    ),
+    true
+  );
+  await evaluate("document.querySelector('a[href=\"/search\"]').click()");
+  await until("!!document.querySelector('#music-search')");
+  await keyboardClick(repeatLabels.queue);
+  assert.equal(await evaluate("window.audioLoads"), repeatLoads);
+  console.log(
+    "PASS Repeat queue advances and wraps; mode survives navigation without reloading audio"
+  );
   await add("Third");
   await add("Second");
   await evaluate(
@@ -279,6 +358,18 @@ try {
       );
     }
     await closeQueue();
+    await keyboardClick(repeatLabels.off);
+    await until(
+      `!!document.querySelector('button[aria-label="${repeatLabels.track}"]')`
+    );
+    assert.equal(
+      await evaluate(
+        "document.documentElement.scrollWidth <= innerWidth && document.querySelector('footer').scrollWidth <= document.querySelector('footer').clientWidth"
+      ),
+      true
+    );
+    await keyboardClick(repeatLabels.track);
+    await keyboardClick(repeatLabels.queue);
   }
   console.log(
     "PASS queue layout at 320/375/768/1280px, keyboard opening, focus trap, Escape and focus restoration"

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { usePlayback } from "@/components/playback/playback-provider";
 import { formatTime } from "@/lib/music/track";
 import { QueuePanel } from "@/components/playback/queue-panel";
+import { RepeatControl } from "@/components/playback/repeat-control";
 
 export function MusicPlayer() {
   const p = usePlayback();
@@ -84,16 +85,23 @@ export function MusicPlayer() {
           />
           <span>{formatTime(p.duration || p.track?.duration || null)}</span>
         </div>
-        <p role="status" className="text-xs text-muted-foreground">
-          {p.error ??
-            (p.buffering
-              ? "Buffering..."
-              : upcoming.length
-                ? `Up next: ${upcoming[0].title} (${upcoming.length} queued)`
-                : p.track
-                  ? "End of queue"
-                  : "Your queue is empty")}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p role="status" className="min-w-0 text-xs text-muted-foreground">
+            {p.error ??
+              (p.buffering
+                ? "Buffering..."
+                : p.track && p.repeatMode === "track"
+                  ? "Repeating current track"
+                  : upcoming.length
+                    ? `Up next: ${upcoming[0].title} (${upcoming.length} queued)`
+                    : p.track
+                      ? p.repeatMode === "queue"
+                        ? "Queue will repeat"
+                        : "End of queue"
+                      : "Your queue is empty")}
+          </p>
+          <RepeatControl />
+        </div>
       </div>
     </footer>
   );

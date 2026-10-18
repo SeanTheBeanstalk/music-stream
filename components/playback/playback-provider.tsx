@@ -9,11 +9,12 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { emptyQueue, queueReducer } from "@/lib/music/queue";
+import { emptyQueue, queueReducer, type RepeatMode } from "@/lib/music/queue";
 import type { Track } from "@/lib/music/track";
 
 function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   const [queue, dispatch] = useReducer(queueReducer, emptyQueue);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
   const [playing, setPlaying] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,11 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   }, [track?.id, queue.index, queue.revision]);
   return {
     queue,
+    repeatMode,
+    cycleRepeatMode: () =>
+      setRepeatMode((mode) =>
+        mode === "off" ? "track" : mode === "track" ? "queue" : "off"
+      ),
     track,
     playing,
     buffering,
@@ -114,7 +120,8 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
       },
       onEnded: () => {
         setPlaying(false);
-        dispatch({ type: "next" });
+        setBuffering(false);
+        dispatch({ type: "ended", repeatMode });
       },
     },
   };

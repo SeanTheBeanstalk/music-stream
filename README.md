@@ -16,6 +16,13 @@ returns focus to its button.
 Selecting a queued track replaces current playback and keeps the other upcoming
 tracks in order; the previous current track remains in playback history.
 
+The player's repeat button cycles through Off, Repeat track, and Repeat queue.
+Repeat track restarts the current track when it ends. Repeat queue plays through
+all retained tracks, including playback history, then returns to the first.
+Next and Previous keep their normal queue boundaries in every mode. Changing
+repeat mode leaves playback uninterrupted and keeps the mode across navigation;
+reloading the app resets it to Off. Playback errors still require retry or skip.
+
 ## Run locally
 
 Use Node.js 22.6+ and pnpm. Install `yt-dlp` separately on the server and ensure
@@ -34,6 +41,13 @@ a 2 MiB output limit, and a limit of four concurrent subprocesses per worker.
 Audio responses forward byte ranges for seeking and cancel upstream requests
 when the listener disconnects. YouTube availability and supported audio formats
 can vary by upload and browser.
+
+Streaming selects `bestaudio` using yt-dlp's quality ranking rather than
+preferring M4A over other formats. The selected audio is proxied unchanged,
+without transcoding or resampling. Codec and bitrate depend on the formats
+YouTube makes available for each upload; this does not add lossless quality or
+restore detail missing from the source. The browser must support the selected
+format.
 
 ## Checks
 
@@ -62,5 +76,6 @@ For queue interactions without YouTube access, run
 `node tests/browser-queue-check.mjs` with the same server and Chromium setup.
 It stubs search and audio to check queue selection (including duplicate video
 IDs), removal, reordering, clearing, navigation persistence, keyboard actions,
-focus handling, and layouts at 320, 375, 768, and 1280 pixels. This check does
+focus handling, repeat modes and track endings, and layouts at 320, 375, 768,
+and 1280 pixels. Use headless Microsoft Edge for browser checks. This check does
 not validate real audio playback or seeking.

@@ -1,10 +1,12 @@
 import type { Track } from "./track";
+export type RepeatMode = "off" | "track" | "queue";
 export interface QueueState {
   tracks: Track[];
   index: number;
   revision: number;
 }
 export type QueueAction =
+  | { type: "ended"; repeatMode: RepeatMode }
   | { type: "play" | "enqueue"; track: Track }
   | { type: "next" | "previous" | "clear-upcoming" }
   | { type: "select" | "remove"; index: number }
@@ -15,6 +17,20 @@ export function queueReducer(
   action: QueueAction
 ): QueueState {
   switch (action.type) {
+    case "ended":
+      // An ending event must never start an idle or empty queue.
+      if (!state.tracks[state.index]) return state;
+      if (action.repeatMode === "track")
+        return { ...state, revision: state.revision + 1 };
+      if (state.index + 1 < state.tracks.length)
+        return {
+          ...state,
+          index: state.index + 1,
+          revision: state.revision + 1,
+        };
+      if (action.repeatMode === "queue")
+        return { ...state, index: 0, revision: state.revision + 1 };
+      return state;
     case "select": {
       if (
         !Number.isInteger(action.index) ||

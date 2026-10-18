@@ -18,7 +18,8 @@ export async function GET(
       [
         "--get-url",
         "-f",
-        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+        // Use yt-dlp's quality ranking across containers instead of forcing M4A.
+        "bestaudio",
         "--",
         `https://www.youtube.com/watch?v=${videoId}`,
       ],
