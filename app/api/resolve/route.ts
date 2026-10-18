@@ -1,6 +1,6 @@
 import { catalogId } from "@/lib/music/catalog";
-import { matchCandidates } from "@/lib/music/matching";
-import { normalizeTrack, type Track } from "@/lib/music/track";
+import type { Track } from "@/lib/music/track";
+import { resolveSource } from "@/lib/server/resolve-source";
 import {
   catalog,
   CatalogError,
@@ -8,11 +8,7 @@ import {
   requestCountry,
 } from "@/lib/server/itunes";
 import { createRequestCache } from "@/lib/server/request-cache";
-import {
-  runYoutube,
-  YoutubeError,
-  youtubeErrorResponse,
-} from "@/lib/server/youtube";
+import { YoutubeError, youtubeErrorResponse } from "@/lib/server/youtube";
 export const runtime = "nodejs";
 const resolved = createRequestCache<Track>(100, 900_000);
 export async function GET(request: Request) {
@@ -37,21 +33,7 @@ export async function GET(request: Request) {
             "No confident YouTube match. Try another recording.",
             422
           );
-        const output = await runYoutube(
-          [
-            "--dump-single-json",
-            "--skip-download",
-            "--flat-playlist",
-            "--",
-            `ytsearch5:${metadata.artist.name} ${metadata.title}`,
-          ],
-          signal
-        );
-        const data = JSON.parse(output);
-        const candidates: Track[] = Array.isArray(data.entries)
-          ? data.entries.slice(0, 5).map(normalizeTrack).filter(Boolean)
-          : [];
-        const source = matchCandidates(metadata, candidates);
+        const source = await resolveSource(metadata, signal);
         if (!source)
           throw new CatalogError(
             "No confident YouTube match. Try another recording or retry.",

@@ -87,7 +87,11 @@ test("catalog covers accept Apple artwork URLs and reject untrusted URLs", () =>
 });
 test("matching selects the highest YouTube result with the catalog title and artist", () => {
   const unrelated = candidate("Someone - Another Song", "Someone");
-  const top = candidate("The Artist - Test Song (Live)", "Fan upload", 500);
+  const top = candidate(
+    "The Artist - Test Song (Official Audio)",
+    "Fan upload",
+    200
+  );
   const lower = { ...candidate(), id: "rboiHxBqdZk" };
   assert.equal(matchCandidates(catalog, [unrelated, top, lower]), top);
   assert.equal(matchCandidates(catalog, [lower, top]), lower);
@@ -101,7 +105,7 @@ test("matching selects the highest YouTube result with the catalog title and art
   );
   assert.equal(matchCandidates(catalog, []), null);
 });
-test("matching ignores duration, version and explicitness restrictions", () => {
+test("matching rejects different recording versions but does not require duration", () => {
   for (const marker of [
     "Live",
     "Remix",
@@ -118,7 +122,7 @@ test("matching ignores duration, version and explicitness restrictions", () => {
     );
     assert.equal(
       matchCandidates({ ...catalog, duration: null }, [source]),
-      source
+      null
     );
   }
   const source = candidate(undefined, undefined, 500);
@@ -145,6 +149,42 @@ test("matching normalizes punctuation, accents and case and allows uploader arti
     null
   );
 });
+test("sped-up titles allow omitted Version but still require the edit and artist", () => {
+  const spedUp = normalizeCatalog(
+    {
+      ...row,
+      trackName: "LIMBO (Sped Up Version)",
+      artistName: "keshi",
+    },
+    "US"
+  );
+  const plain = candidate("keshi - LIMBO", "keshi");
+  const slowed = candidate("keshi - LIMBO (Slowed)", "keshi");
+  const wrongArtist = candidate("LIMBO (Sped Up)", "Someone else");
+  const shortened = candidate("Keshi - LIMBO (Sped Up)", "keshi");
+  const official = candidate("LIMBO (Sped Up Version)", "keshi - Topic");
+  assert.equal(matchCandidates(spedUp, [plain, slowed, wrongArtist]), null);
+  assert.equal(
+    matchCandidates(spedUp, [plain, shortened, official]),
+    shortened
+  );
+  assert.equal(matchCandidates(spedUp, [official, shortened]), official);
+  assert.equal(
+    matchCandidates(spedUp, [candidate("LIMBO (SPED-UP)", "keshi")])?.title,
+    "LIMBO (SPED-UP)"
+  );
+  assert.equal(
+    matchCandidates({ ...spedUp, title: "LIMBO (Sped Up)" }, [official]),
+    official
+  );
+  assert.equal(
+    matchCandidates({ ...spedUp, title: "Version of Me" }, [
+      candidate("keshi - of Me", "keshi"),
+    ]),
+    null
+  );
+});
+
 test("resolved entries retain independent catalog/video identities and legacy queue compatibility", () => {
   const resolved = { ...candidate(), catalog };
   let queue = queueReducer(emptyQueue, { type: "play", track: candidate() });

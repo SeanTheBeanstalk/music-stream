@@ -12,7 +12,10 @@ export function MusicPlayer() {
   const p = usePlayback();
   const upcoming = p.queue.tracks.slice(p.queue.index + 1);
   const details = p.track
-    ? trackDetails(p.track, { showGenreAndYear: false })
+    ? trackDetails(p.track, {
+        showGenreAndYear: false,
+        showExplicitness: false,
+      })
     : null;
   return (
     <footer

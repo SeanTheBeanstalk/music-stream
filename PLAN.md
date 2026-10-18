@@ -36,7 +36,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] One audio element and playback provider mounted in the root layout to preserve playback across Home/Search navigation.
 - [x] Playback and queue state separated from search UI and track normalization.
 - [x] Play/pause, previous/next, volume, elapsed time, and duration controls.
-- [x] Player displays the catalog song title, artist, album, and explicitness separately from YouTube upload metadata; playback timing uses the browser audio resource.
+- [x] Player displays the catalog song title, artist, and album separately from YouTube upload metadata; playback timing uses the browser audio resource.
 - [x] Seek control enabled when the browser reports a seekable resource and finite duration.
 - [x] In-memory queue retaining selected video IDs and metadata without repeating text searches.
 - [x] Queue additions preserve the active track and upcoming order; the first track stays in Up next until Play makes it current.
@@ -75,7 +75,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 
 - [x] iTunes catalog search through a validated, cached server route, with storefront selection and rate-limit handling.
 - [x] Structured iTunes track metadata in search results, with separate catalog and playback identities.
-- [x] Resolve selected catalog tracks to matching YouTube uploads on Play or Add to queue, selecting the highest YouTube result matching the title and artist.
+- [x] Resolve selected catalog tracks on Play or Add to queue using core-title/artist evidence, compatible recording descriptors, ranked candidates, and one bounded fallback query.
 - [x] Display validated iTunes cover metadata in search, queue, and player with missing/broken-image fallbacks, as requested. Audio previews remain disabled.
 - [ ] Library screen, liked songs, personal playlists, and playlist operations with meaningful tests.
 - [ ] Persistent library storage, accounts, and cross-device access.
@@ -98,9 +98,11 @@ Keep both integrations in server-only modules, separate from UI and playback sta
 
 Normalize iTunes track ID, title, artist ID/name, album ID/name, catalog duration, genre, explicitness, available release date, store URL, and permitted artwork URL. Leave missing fields unknown. Use bounded caching for search and lookup JSON, deduplicate concurrent requests, and handle upstream failures and throttling. Apple documents approximately 20 calls per minute, subject to change; budget calls across requests and account for multiple app workers rather than assuming each user has an independent allowance.
 
-Resolve a selected catalog track to a YouTube upload only when Play or Add to queue needs a playback source. Search for the iTunes artist and title, then choose the first of up to five YouTube results containing the normalized title in the video title and artist in the title or uploader. Preserve YouTube search order. Duration, version markers, explicitness, and uploader-name preference do not filter or reorder candidates. If no title-and-artist match exists, return a clear no-match state and leave the current player and queue unchanged. Keep matching criteria explicit and covered by tests.
+Resolve a selected catalog track to a YouTube upload only when Play or Add to queue needs a playback source. Separate core titles from recognized recording descriptors, featured-artist labels and upload presentation labels. Require normalized artist attribution and the complete core title, allowing all-word matching for titles of at least three words. Require compatible recording descriptors (including named remixers), with optional remaster labels. Rank qualifying results using title phrase evidence, matching version labels and optional duration proximity; retain YouTube order on ties. Catalog explicitness alone does not constrain the source. Search up to five candidates with the full metadata query, then try one distinct simplified artist/core-title query only if no match qualifies. Limit the complete search phase to 45 seconds, retain cancellation and subprocess safeguards, and propagate upstream errors without fallback. If no confident match exists, leave the current player and queue unchanged. Keep matching criteria explicit and covered by tests.
 
 Store the validated selected video ID and canonical watch URL (`https://www.youtube.com/watch?v={videoId}`) separately from catalog metadata. Retain `/api/metadata/{videoId}` for playback-source inspection. Show the selected upload's title, uploader, and YouTube link alongside catalog details once resolved, so users can inspect the source. Playback reliability and deployment requirements still need verification.
+
+Descriptor normalization supports equivalent labels such as "Sped Up" / "Sped Up Version", "Slowed" / "Slowed Down Version", and "Radio Edit" / "Radio Version". Preserve unknown parenthetical subtitles and ordinary title words such as "Live and Let Die" and "Version of Me".
 
 ### Apple Asset Use
 
@@ -171,7 +173,7 @@ Run the existing checks:
 
 Add focused tests for queue behavior, playlist operations, and a browser journey covering search → play → save. Check keyboard controls, mobile layouts, and playback persistence during navigation.
 
-Cover query and storefront validation, iTunes response normalization, missing metadata, empty results, cache keys and bounds, request deduplication, throttling, upstream failures, subprocess failures and timeouts, cancellation, and stale-response handling. Test title/artist matching, YouTube result order, normalization, no matches, and acceptance of different versions and missing durations. Verify that saved tracks retain catalog identity, storefront, metadata, and any selected video mapping; repeated queue entries and legacy YouTube-only entries must remain valid. Verify catalog-only saves, explicit rematching, actual-source duration, and continued playback during catalog outages. Use Edge for browser tests.
+Cover query and storefront validation, iTunes response normalization, missing metadata, empty results, cache keys and bounds, request deduplication, throttling, upstream failures, subprocess failures and timeouts, cancellation, and stale-response handling. Test title/artist evidence, score ordering and ties, descriptor aliases, incompatible versions, preserved subtitles, missing durations, bounded fallback, deduplicated queries, upstream errors and cancellation. Verify that saved tracks retain catalog identity, storefront, metadata, and any selected video mapping; repeated queue entries and legacy YouTube-only entries must remain valid. Verify catalog-only saves, explicit rematching, actual-source duration, and continued playback during catalog outages. Use Edge for browser tests.
 
 Choose hosting after confirming the audio delivery requirements.
 
@@ -179,4 +181,4 @@ Choose hosting after confirming the audio delivery requirements.
 
 Implement iTunes song search and frontend metadata with server-side caching, then add on-demand YouTube matching while retaining the responsive app shell and persistent player with a shared queue. Display catalog cover metadata with missing/broken-image fallbacks as requested; keep artwork media separate from JSON caching. Connect saving through the library phase. Defer iTunes previews, standalone artist/album browsing, user-facing alternate-source selection, subscriptions, recommendations, social features, and offline downloads until the core experience is dependable.
 
-Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist, album and explicitness, omitting genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Cover metadata is displayed in search, queue, and the desktop player; missing or failed covers use a music icon.
+Search defaults to the top five iTunes songs in upstream order. The player shows a plain song title with iTunes artist and album, omitting explicitness, genre and release year. Search and queue cards display title, artist and album, with duration, genre, release date, explicitness, storefront and source/store links in an icon-triggered details popup. Source metadata stays separate for YouTube inspection; elapsed time, duration and seeking use the browser audio resource. Cover metadata is displayed in search, queue, and the desktop player; missing or failed covers use a music icon.

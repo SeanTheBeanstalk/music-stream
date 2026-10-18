@@ -2,11 +2,23 @@
 
 Search follows `PLAN.md`: submit a song, artist, or album at `/search`, choose
 an iTunes storefront, and browse the top five structured song results. Play or Add
-to queue resolves a trusted catalog lookup against up to five YouTube candidates.
-The first YouTube result containing the normalized song title and artist is
-selected, preserving search order. Duration, version and explicitness do not
-restrict matching. If no title-and-artist match exists, a recoverable error
-leaves playback and the queue unchanged.
+to queue resolves a trusted catalog lookup against up to five YouTube candidates
+per query. The resolver separates the core title from recording descriptors,
+featured-artist labels and upload presentation labels. It normalizes accents,
+apostrophes, punctuation and case, and requires the artist plus the complete core
+title (a phrase, or all title words for titles of three or more words).
+Candidates must have compatible recording labels such as sped up, slowed, live,
+acoustic, radio edit or remix; named remixers remain required. Remaster labels
+are optional. Equivalent descriptor wording is accepted, while unknown subtitles
+remain part of the title. Title phrase evidence ranks above reordered words;
+matching version labels and similar duration provide supporting scores. Missing
+duration is allowed. Equal scores preserve YouTube order. Catalog explicitness
+alone does not verify whether an upload is clean or explicit.
+If no candidate qualifies, one simplified artist/core-title query is tried with
+the same version requirements. Equivalent queries are deduplicated. There are at
+most two searches, ten candidates total, and a shared 45-second timeout. Upstream
+errors stop resolution rather than triggering fallback. No confident match
+produces a recoverable error and leaves playback and the queue unchanged.
 Catalog IDs and artist/album records remain separate from video IDs; repeated
 queue selections and legacy YouTube-only entries remain supported. Inspect the
 resolved upload's title, uploader and YouTube link in its result card.
