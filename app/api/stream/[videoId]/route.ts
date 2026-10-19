@@ -1,5 +1,10 @@
 import { isVideoId } from "@/lib/music/track";
 import {
+  cachedPlayback,
+  r2PlaybackEnabled,
+} from "@/lib/server/cached-playback";
+import { getMusicRepository } from "@/lib/server/persistent-music";
+import {
   runYoutube,
   YoutubeError,
   youtubeErrorResponse,
@@ -12,7 +17,18 @@ export async function GET(
   const { videoId } = await params;
   if (!isVideoId(videoId))
     return Response.json({ error: "Invalid video ID." }, { status: 400 });
+  const range = request.headers.get("range");
+  if (range && (!/^bytes=\d*-\d*$/.test(range) || range === "bytes=-"))
+    return new Response(null, { status: 416 });
   try {
+    if (r2PlaybackEnabled()) {
+      const cached = await cachedPlayback(
+        request,
+        videoId,
+        getMusicRepository()
+      );
+      if (cached) return cached;
+    }
     // Proxy byte ranges from the audio resource to support browser seeking.
     const output = await runYoutube(
       [
@@ -33,10 +49,7 @@ export async function GET(
       AbortSignal.timeout(120_000),
     ]);
     const headers = new Headers();
-    const range = request.headers.get("range");
     if (range) {
-      if (!/^bytes=\d*-\d*$/.test(range) || range === "bytes=-")
-        return new Response(null, { status: 416 });
       headers.set("Range", range);
     }
     const upstream = await fetch(url, {

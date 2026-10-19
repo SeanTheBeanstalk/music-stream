@@ -1,8 +1,10 @@
 import { catalogId } from "@/lib/music/catalog";
 import type { Track } from "@/lib/music/track";
-import { resolveSource } from "@/lib/server/resolve-source";
 import {
-  catalog,
+  createPersistentMusic,
+  getMusicRepository,
+} from "@/lib/server/persistent-music";
+import {
   CatalogError,
   catalogErrorResponse,
   requestCountry,
@@ -21,26 +23,12 @@ export async function GET(request: Request) {
     const country = requestCountry(params.get("country"));
     const track = await resolved(
       `${country}:${id}`,
-      async (signal) => {
-        const metadata = await catalog.lookup(id, country, signal);
-        if (!metadata)
-          throw new CatalogError(
-            "This track is unavailable in the selected storefront.",
-            404
-          );
-        if (!metadata.artist.name)
-          throw new CatalogError(
-            "No confident YouTube match. Try another recording.",
-            422
-          );
-        const source = await resolveSource(metadata, signal);
-        if (!source)
-          throw new CatalogError(
-            "No confident YouTube match. Try another recording or retry.",
-            422
-          );
-        return { ...source, catalog: metadata };
-      },
+      (signal) =>
+        createPersistentMusic(getMusicRepository()).resolve(
+          id,
+          country,
+          signal
+        ),
       request.signal
     );
     return Response.json(

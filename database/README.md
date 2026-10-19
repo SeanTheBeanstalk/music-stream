@@ -2,7 +2,11 @@
 
 These scripts implement the nine tables in `PLAN.md`, in dependency order.
 Use PostgreSQL 14 or later; UUID generation uses built-in `gen_random_uuid()`
-and needs no extension. No packages or runtime database integration are added.
+and needs no extension. The server uses the `pg` driver to connect these tables
+to catalog search, source resolution, metadata inspection, and ready R2 playback.
+Set server-only `DATABASE_URL` after applying the migration. The pool is created
+on first use and no migrations run automatically. See the root README for
+timeouts, connection budgets, fallback behavior, and the R2 read switch.
 
 ## Create a local database and its tables
 

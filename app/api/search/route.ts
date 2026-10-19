@@ -1,10 +1,13 @@
 import { MAX_QUERY_LENGTH } from "@/lib/music/track";
 import {
-  catalog,
   CatalogError,
   catalogErrorResponse,
   requestCountry,
 } from "@/lib/server/itunes";
+import {
+  createPersistentMusic,
+  getMusicRepository,
+} from "@/lib/server/persistent-music";
 export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
@@ -21,7 +24,11 @@ export async function GET(request: Request) {
         400
       );
     const country = requestCountry(params.get("country"));
-    const tracks = await catalog.search(query, country, request.signal);
+    const tracks = await createPersistentMusic(getMusicRepository()).search(
+      query,
+      country,
+      request.signal
+    );
     return Response.json(
       { tracks, country },
       { headers: { "Cache-Control": "no-store" } }

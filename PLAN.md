@@ -8,7 +8,70 @@ Last reviewed: **2026-10-19**, against the current working tree (package version
 
 ## Feature Checklist
 
+### PostgreSQL Schema Foundation
+
+- [x] Database creation script and transactional, versioned migration for the
+  nine catalog, source, asset/job, account, and library tables.
+- [x] Schema constraints for catalog/video identity, selected mappings, ready
+  assets, active jobs and leases, and ordered playlists with repeated songs.
+- [x] Document setup and provide rollback-only SQL constraint checks in
+  `database/tests/schema.sql`.
+- [x] Run the migration and SQL constraint checks against an isolated PostgreSQL
+  database. On 2026-10-19, PostgreSQL **18.6** passed
+  `database/create-database.sql` and `database/tests/schema.sql` on a temporary
+  loopback-only cluster on port 55432. All nine tables were created and all
+  nine were empty after the test transaction rolled back. The test server was
+  stopped afterward; the existing local database was not modified.
+- [x] Connect server-side repositories and shared metadata/mapping persistence
+  to search, resolution, and source metadata inspection.
+- [ ] Connect durable cache workers and authenticated library operations.
+
+### Cloudflare R2 Storage Foundation
+
+- [x] Implement the lean `cloudflare_r2_integration_guide.md` using a lazy,
+  server-only S3 client, region `auto`, and one configured bucket.
+- [x] Audio buffer uploads, private signed playback/direct-upload URLs, HEAD,
+  ranged GET, and delete helpers with input validation, timeout, and cancellation.
+- [x] Document server-only environment variables and provide `pnpm r2` for
+  manual upload, inspection, and signed URL generation.
+- [x] Offline regression tests for configuration, signatures, invalid inputs,
+  byte ranges, cancellation, and storage failures.
+- [x] Verify private uploads, reads, byte ranges, and signed URLs against a
+  configured R2 bucket. Recorded live access verification on 2026-10-19 passed SDK upload, HEAD size/type,
+  byte-identical full reads, ranged reads (206 and correct Content-Range),
+  signed playback GET, and signed direct-upload PUT. Both temporary test
+  objects were deleted and confirmed absent with HEAD 404.
+- [x] Verify browser seeking and duration against actual R2 audio in Edge.
+  On 2026-10-19, Edge **155.0.4283.62** reported the generated WAV's exact
+  **12-second** duration, sought forwards/backwards, and played the full file
+  through both a private signed R2 URL and an isolated adapter-backed proxy.
+  `tests/browser-r2-check.mjs` also passed real R2 206/Content-Range, 416,
+  missing-object 404, unsigned-read rejection, and client cancellation with
+  adapter body destruction before EOF. The temporary object was deleted and
+  HEAD confirmed 404. This tests the storage adapter and a test proxy, not the
+  application's stream route, long tracks, other formats, or direct-fetch CORS.
+  After adding the repeatable browser check, `pnpm test` passed all **52 tests**,
+  and `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. An initial build
+  encountered a locked temporary Edge profile; closing the dedicated browser
+  and rerunning the build resolved it.
+- [x] Connect ready, unexpired audio assets to private ranged playback through
+  the stream route, with missing-object invalidation and YouTube fallback.
+- [ ] Connect durable jobs and worker cache fills; ready-asset reads do not
+  download or publish assets automatically.
+
 Checked items are implemented in the current working tree. They do not imply that live playback, browser compatibility, or deployment has been fully validated.
+
+Application storage integration verified on 2026-10-19: all **68 tests** passed
+with a temporary PostgreSQL **18.6** server, including concurrent mapping selection,
+metadata/storefront isolation, freshness and asset-version safety. Without
+`TEST_DATABASE_URL`, the isolated Postgres test skips (67 pass, one skip).
+`pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. The new
+`tests/browser-storage-integration-check.mjs` passed against the production app
+stream route and live private R2 using Edge **155.0.4283.62**: byte-identical full,
+bounded/suffix/open ranges, 416 responses, 12-second browser duration, forward and
+backward seeks, and advancing playback. Fixture database rows and the R2 object
+were removed, with HEAD confirming 404. This check does not exercise automatic
+cache fills, long tracks, or authenticated libraries.
 
 ### App Foundation and Navigation
 
@@ -74,10 +137,16 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] Browser smoke-test script covering live search/playback, seeking, keyboard controls, navigation persistence, mobile overflow, stale results, and empty/error states.
 - [x] Browser queue regression script with stubbed search/audio covering selection, removal, reordering, clearing, navigation persistence, keyboard controls, focus handling, and layouts at 320, 375, 768, and 1280 pixels.
 - [x] Browser catalog regression script with stubbed catalog/resolution/audio covering submit-only search, storefront selection, details popups, keyboard access, failed-match safety and retry, stale searches/actions, empty/throttled states, playback preservation, and responsive layouts.
-- [x] Browser retry regression script (`tests/browser-retry-check.mjs`, currently untracked) using real Edge media playback with stubbed HTTP 502 and WAV responses to check automatic recovery, pause cancellation, and recovery after a partial response. This does not validate the live YouTube source.
+- [x] Browser retry regression script (`tests/browser-retry-check.mjs`) using real Edge media playback with stubbed HTTP 502 and WAV responses to check automatic recovery, pause cancellation, and recovery after a partial response. This does not validate the live YouTube source.
 - [x] README setup instructions for Node.js, pnpm, `yt-dlp`, environment configuration, checks, and manual/browser validation.
 
 Verification during the 2026-10-19 review: `pnpm test` passed all **47 tests**; `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. Browser scripts and live-source playback checks were not run during this review. Checked browser-script items record available coverage, not a fresh successful browser run.
+
+Checklist refresh on 2026-10-19: `pnpm test` passed all **52 tests**, including
+the R2 regressions. This refresh changes documentation only; lint, typecheck,
+build, browser scripts, PostgreSQL checks, and live-provider checks were not
+rerun. Live results below and in the R2 section retain their earlier recorded
+verification scope.
 
 Follow-up Edge verification on 2026-10-19 (Edge **155.0.4283.62**, production server):
 
@@ -98,6 +167,10 @@ The original live smoke query, "daft punk get lucky", returned a recoverable no-
 - [x] Structured iTunes track metadata in search results, with separate catalog and playback identities.
 - [x] Resolve selected catalog tracks on Play or Add to queue using core-title/artist evidence, compatible recording descriptors, ranked candidates, and one bounded fallback query.
 - [x] Display validated iTunes cover metadata in search, queue, and player with missing/broken-image fallbacks, as requested. Audio previews remain disabled.
+- [x] PostgreSQL schema, versioned migration, setup documentation, and rollback-only constraint checks; isolated database verification recorded above.
+- [x] Private R2 storage adapter, manual CLI, and offline regression tests; live storage and Edge seeking verification recorded above.
+- [x] Connect server-side repositories and durable catalog/source mapping persistence to PostgreSQL.
+- [ ] Integrate ready R2 assets into the application stream route, with durable cache-fill jobs, workers, cleanup, and eviction.
 - [ ] Library screen and navigation, with empty states and liked songs.
 - [ ] Personal playlists with create, rename, delete, add/remove track, and ordering operations, covered by meaningful tests.
 - [ ] Like and Add to playlist actions that save catalog identity, storefront, and metadata without requiring audio resolution; preserve an existing playback-source mapping when present.
@@ -112,7 +185,7 @@ The original live smoke query, "daft punk get lucky", returned a recoverable no-
 
 ### Recommended Next Steps
 
-1. **Verify live playback reliability in Edge first.** Run the existing browser checks, then test actual YouTube audio for duration, seeking, full-track playback (including tracks longer than the proxy's 120-second timeout), retry recovery, slow connections, and cancellation on listener disconnect. Record results separately from stubbed regression coverage; keep broader browser/mobile verification open until exercised on those targets.
+1. **Finish the remaining playback and storage verification.** Earlier Edge checks cover live seeking, sustained playback, retry recovery, and slow connections. PostgreSQL migration/SQL constraints and short WAV playback/seeking from private R2 now pass in isolation. Verify an individual upstream transfer beyond 120 seconds and instrument the application's upstream cleanup after listener disconnect. Application database connection/pooling, outages, integrated R2 stream delivery, and concurrent repository/worker operations remain to be verified when implemented. Keep broader browser/mobile verification open until exercised on those targets.
 2. **Complete the save part of the first milestone.** Add the Library screen, catalog-only likes, personal playlists, and storage that survives reloads. Preserve storefront and any selected video mapping, keep library state separate from playback, and cover playlist operations plus the search → play → save → reload journey. Accounts and cross-device sync follow as a separate step.
 3. **Prepare deployment after the core journey is verified.** Confirm a Node host can run `yt-dlp` and proxy audio, then validate stream lifetimes, disconnect cleanup, and the iTunes request budget for the intended worker count.
 
@@ -209,7 +282,7 @@ Choose hosting after confirming the audio delivery requirements.
 
 ## Shared Postgres Database and Audio Cache Implementation Outline
 
-Status: proposed implementation roadmap; no database, storage provider, migrations, or download worker has been provisioned. Keep iTunes as the catalog and YouTube as the existing playback source.
+Status: PostgreSQL repositories now persist catalog/source metadata and selected mappings through search, resolution, and metadata routes. The stream route can serve ready private R2 assets with `R2_PLAYBACK_ENABLED=true`, retaining YouTube fallback. Download/publication workers and authenticated library operations remain unimplemented. Test clusters are temporary; verification does not establish a provisioned application database or production deployment. Keep iTunes as the catalog and YouTube as the existing playback source.
 
 ### 1. Storage Responsibilities and Identity
 
@@ -238,7 +311,7 @@ Use foreign keys, nonnegative size/duration checks, explicit cache-state checks,
 
 #### Detailed Column Schema
 
-This is the proposed schema for future SQL migrations, not an applied migration. `PK` means primary key, `FK` means foreign key, and `?` means nullable. All other columns are required. UUID primary keys are generated on insert; creation timestamps default to the current time. Application updates must maintain `updated_at`.
+This schema is implemented in `database/migrations/0001_initial_schema.sql` and was verified against an isolated test database, as recorded above. Application database setup and repository integration remain pending. `PK` means primary key, `FK` means foreign key, and `?` means nullable. All other columns are required. UUID primary keys are generated on insert; creation timestamps default to the current time. Application updates must maintain `updated_at`.
 
 **`catalog_tracks`** — trusted catalog metadata, independent of source resolution.
 

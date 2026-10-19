@@ -23,7 +23,8 @@ Catalog IDs and artist/album records remain separate from video IDs; repeated
 queue selections and legacy YouTube-only entries remain supported. Inspect the
 resolved upload's title, uploader and YouTube link in its result card.
 Playback continues between Home and Search. Queue data stays in memory;
-likes, playlists, and persistence belong to the library phase.
+likes and playlists belong to the authenticated library phase. Optional Postgres
+storage persists shared catalog metadata and selected YouTube mappings.
 
 Catalog covers use validated iTunes artwork URLs, loaded directly by the browser.
 Missing or failed images fall back to a music icon. Artwork media is not proxied
@@ -88,11 +89,131 @@ YouTube makes available for each upload; this does not add lossless quality or
 restore detail missing from the source. The browser must support the selected
 format.
 
+## Cloudflare R2 storage
+
+The lean [R2 integration guide](cloudflare_r2_integration_guide.md) is implemented
+in `lib/server/r2.ts` and `lib/server/storage.ts`. It uses one lazy S3 client and
+one bucket, with upload, private signed playback/upload URLs, HEAD, ranged GET,
+and delete helpers. Configuration is required only when a helper is called.
+SDK requests have bounded retries/timeouts and accept caller cancellation.
+
+Create a private Standard R2 bucket and bucket-scoped object credentials, then
+set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and
+`R2_BUCKET_NAME` in `.env.local` (see `.env.example`). Restart after changing
+credentials. Keep public access disabled. `R2_PUBLIC_URL` is documented for
+compatibility with the guide but is unused by this private-storage integration.
+Account endpoints, region `auto`, and signed URLs follow
+[Cloudflare's SDK example](https://developers.cloudflare.com/r2/examples/aws/aws-sdk-js-v3/).
+
+Exercise the integration with a small audio file you are authorized to store:
+
+```sh
+pnpm r2 upload ./sample.mp3 dev/audio/sample.mp3 audio/mpeg
+pnpm r2 head dev/audio/sample.mp3
+pnpm r2 play-url dev/audio/sample.mp3
+pnpm r2 upload-url dev/audio/direct.mp3 audio/mpeg
+```
+
+The CLI loads `.env`, then `.env.local`; existing process environment variables
+take precedence. Playback URLs expire after one hour; upload URLs expire after
+15 minutes. Treat printed URLs as temporary access credentials. Direct uploads
+must send the signed Content-Type. Browser-to-R2 requests also need bucket CORS
+for your application's origin and relevant methods/headers; server-side uploads
+do not. HEAD confirms object size/type; URL signing alone does not check existence.
+
+Server callers import helpers from `@/lib/server/storage`. `getAudio` returns the
+SDK response including its streaming `Body`, content length/type/range, and ETag;
+the caller must consume or destroy the body. Helpers propagate SDK errors so the
+delivery layer can handle missing objects or unsatisfiable ranges. Generate keys
+on the server and verify audio contents before upload; a MIME label is not media
+validation. The CLI reads the supplied file into memory and is intended for small
+manual uploads. No public upload or signing API is exposed.
+
+Set `R2_PLAYBACK_ENABLED=true` with `DATABASE_URL` and the R2 credentials to serve
+ready assets through `/api/stream/{videoId}`. The shared player already uses this
+route, so search results and queued tracks automatically use stored audio when
+available. The route reads `audio_assets` for profile `original-audio-v1`, state
+`ready`, and an unexpired asset. It streams private R2 objects with byte ranges,
+correct length/type and 206/416 responses; browser requests remain same-origin
+and require no R2 CORS. Canceling delivery cancels the storage transfer.
+
+On cache misses, database failures, or R2 failures before delivery begins, playback
+uses the existing YouTube proxy. Missing objects are conditionally marked evicted;
+transient failures do not evict them. Access timestamps are updated at most once
+per five minutes per asset. Failures during an active transfer use the player's
+existing retry behavior. Stored signed URLs are never required.
+
+Automatic downloads, asset publication, durable jobs, and eviction workers remain
+the separate audio-cache phase in `PLAN.md`; enabling reads does not populate R2.
+Manual CLI uploads alone do not create a ready database asset. Assets must already
+have verified media descriptors, checksum, positive size, and a complete readable
+object before publication. Enable storage delivery only for authorized content.
+
+## PostgreSQL integration
+
+Apply the migration using [database setup](database/README.md), then set the
+server-only `DATABASE_URL` and restart the app. No migration runs automatically.
+The `pg` dependency provides a lazy shared pool (five connections per app process),
+parameterized queries, and transactions following the
+[driver documentation](https://node-postgres.com/features/transactions). Allow for
+all app instances when setting database connection limits. Connections time out
+after three seconds and statements after five seconds; use your provider's
+verified TLS settings in the URL for hosted databases.
+
+Search saves trusted catalog responses. Resolution reuses fresh metadata for
+24 hours and preserves selected mappings across restarts and app instances;
+concurrent selections lock the catalog row and keep the first selected source.
+Expired catalog metadata refreshes through iTunes; a temporary catalog outage
+can use saved metadata without extending its freshness. The metadata endpoint
+also reuses source metadata for 24 hours. Metadata freshness, source availability,
+and audio readiness are separate; metadata fetches do not assert playability.
+With no database configured, or a failed read/write, provider search and playback
+remain available. Database errors are logged without query values or credentials.
+No authenticated likes or playlist writes are exposed by this integration.
+
 ## Checks
 
 PostgreSQL creation scripts, the versioned schema migration from `PLAN.md`,
 and database constraint checks are documented in [database/README.md](database/README.md).
-The application does not yet connect to these tables.
+Run the repository integration suite against an isolated migrated database by
+setting `TEST_DATABASE_URL` before `pnpm test`. It skips by default and never uses
+`DATABASE_URL`. The suite checks metadata upserts/storefront isolation, concurrent
+mapping selection, freshness, ready/expired assets, throttled access timestamps,
+and replacement-safe invalidation; it removes its own fixtures afterward.
+
+`tests/browser-storage-integration-check.mjs` verifies the actual application
+stream route with live R2 and an isolated migrated Postgres database. Start the
+app with that database as `DATABASE_URL` and `R2_PLAYBACK_ENABLED=true`, launch
+a dedicated headless Edge instance on CDP port 9224, and run:
+
+```powershell
+$env:TEST_DATABASE_URL = 'postgres://USER:PASSWORD@HOST:PORT/ISOLATED_TEST_DATABASE'
+$env:TEST_ORIGIN = 'http://127.0.0.1:3001' # origin of the configured test app
+node --conditions=react-server --experimental-strip-types --env-file-if-exists=.env.local tests/browser-storage-integration-check.mjs
+```
+
+The check uploads a generated 12-second WAV and publishes a temporary ready asset,
+then verifies byte-identical full/range/suffix/open-range reads, 416 handling,
+invalid route inputs, and Edge duration, forward/backward seeking, and playback.
+Cleanup deletes the fixture's database rows and R2 object, and confirms HEAD 404.
+It does not run automatically with `pnpm test`.
+
+For a live R2 browser check, launch a dedicated headless Microsoft Edge instance
+with a blank tab and remote debugging on port 9224, then run:
+
+```sh
+node --conditions=react-server --experimental-strip-types --env-file-if-exists=.env --env-file-if-exists=.env.local tests/browser-r2-check.mjs
+```
+
+Use `TEST_CDP` to select a different debugging endpoint. This check needs the
+server-only R2 configuration above and live bucket access. It uploads a unique
+12-second generated WAV, checks private signed-URL and adapter-backed local
+proxy playback, duration, forward/backward seeking, full playback, byte ranges,
+missing objects, and cancellation. It deletes the object in cleanup and confirms
+HEAD returns 404; a failed cleanup needs investigation. It never prints signed
+URLs or credentials. The harness binds to an ephemeral loopback port and closes
+afterward. This does not exercise the app's stream route, other formats, long
+tracks, or browser-to-R2 fetch CORS. It runs separately from the offline tests.
 
 ```sh
 pnpm test
