@@ -143,11 +143,65 @@ transient failures do not evict them. Access timestamps are updated at most once
 per five minutes per asset. Failures during an active transfer use the player's
 existing retry behavior. Stored signed URLs are never required.
 
-Automatic downloads, asset publication, durable jobs, and eviction workers remain
-the separate audio-cache phase in `PLAN.md`; enabling reads does not populate R2.
-Manual CLI uploads alone do not create a ready database asset. Assets must already
-have verified media descriptors, checksum, positive size, and a complete readable
-object before publication. Enable storage delivery only for authorized content.
+Automatic fills are available with `AUDIO_CACHE_ENABLED=true`; this also enables
+R2 playback. `R2_PLAYBACK_ENABLED` remains a separate read-only switch. Manual CLI
+uploads alone do not create ready database assets.
+
+### Cache audio when a track plays
+
+1. Apply `database/migrations/0002_cache_objects.sql` after migration 0001.
+2. Set `AUDIO_CACHE_ENABLED=true` in `.env.local`, with `DATABASE_URL` and R2
+   credentials. Restart the app after changing environment variables.
+3. Install ffprobe (part of FFmpeg) and yt-dlp on the worker host. Set
+   `FFPROBE_PATH` / `YT_DLP_PATH` if their executables are not on PATH.
+4. Run `pnpm cache:worker` alongside the Next.js server. Deploy this as a
+   continuously running process with automatic restart. `pnpm cache:worker --once`
+   performs one pass per configured worker lane for diagnostics.
+
+A successful uncached stream request creates one durable job per video/profile.
+Adding a song to the queue does not download it. The first play uses the current
+YouTube proxy; the worker makes a separate upstream transfer, so the initial fill
+temporarily downloads audio twice. Only the short database enqueue runs in the
+stream request. Cache failures preserve the existing stream. Later plays use the
+private R2 object after successful publication.
+
+The worker streams the original audio to a unique temporary file, verifies its
+actual container, codec, and duration with ffprobe, uploads under a unique object
+key, checks HEAD, and reads the object back to verify its complete SHA-256 hash.
+It then atomically marks `audio_assets` ready and `cache_jobs` completed in
+Postgres, storing the key, type, codec, container, size, duration, checksum, and
+expiry. Signed media URLs are never stored. Unpublished objects are never served.
+
+Jobs use renewable 60-second leases and token-protected publication, with up to
+three attempts and backoff. Worker crashes requeue expired leases; exhausted jobs
+can be retried by a later play after a one-hour cooldown. Downloads have a
+ten-minute total deadline and a configurable 128 MB per-file limit. ffprobe has
+a 30-second deadline. Local files are removed after work; abandoned local files
+and unpublished objects become eligible for cleanup after 20 minutes, beyond the
+job deadline. Uncertain database commits retain object records for reconciliation.
+
+`AUDIO_CACHE_MAX_BYTES` defaults to 8 GB, `AUDIO_CACHE_RETENTION_DAYS` to 30, and
+`AUDIO_CACHE_WORKER_CONCURRENCY` to one lane per worker process (maximum four).
+Each claim reserves the configured `AUDIO_CACHE_MAX_FILE_BYTES` before download;
+reservations, uploaded objects, and pending deletions count against the shared
+budget. Full capacity triggers least-recently-used eviction with a ten-minute
+access grace period. Capacity is released only after deletion succeeds. Object
+deletion never removes catalog records, source mappings, or saved library data.
+The budget covers tracked application objects; manual/untracked bucket objects
+and provider billing need separate monitoring. Enable retention only for content
+the deployment is authorized to store and serve.
+
+To verify the worker against an isolated database with both migrations applied:
+
+```powershell
+$env:TEST_DATABASE_URL = 'postgresql://USER:PASSWORD@HOST/ISOLATED_DATABASE'
+pnpm test
+node --conditions=react-server --experimental-strip-types --env-file-if-exists=.env.local tests/audio-cache-live-check.mjs
+```
+
+The explicit live check uses a generated three-second WAV, real ffprobe and R2,
+and the isolated database. It verifies upload/publication, full and ranged reads,
+duplicate plays, and fixture cleanup; it does not download third-party content.
 
 ## PostgreSQL integration
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { createReadStream } from "node:fs";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -51,6 +52,30 @@ export async function uploadAudio(
   });
   await getR2Client().send(command, { abortSignal: operationSignal(signal) });
   return key;
+}
+
+// Worker-created local file; fixed length avoids buffering entire tracks in memory.
+export async function uploadAudioFile(
+  key: string,
+  file: string,
+  byteSize: number,
+  mimeType: string,
+  signal: AbortSignal
+) {
+  const body = createReadStream(file);
+  try {
+    await getR2Client().send(
+      new PutObjectCommand({
+        ...objectInput(key),
+        Body: body,
+        ContentLength: byteSize,
+        ContentType: audioType(mimeType),
+      }),
+      { abortSignal: operationSignal(signal) }
+    );
+  } finally {
+    body.destroy();
+  }
 }
 
 export async function getAudioPlayUrl(key: string, expiresInSeconds = 3600) {

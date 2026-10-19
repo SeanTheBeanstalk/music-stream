@@ -17,7 +17,7 @@ psql -X -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -f database/crea
 ```
 
 `psql` prompts for a password if required. The bootstrap creates `music_stream`,
-connects to it, and applies `migrations/0001_initial_schema.sql`. The `\connect`
+connects to it, and applies migrations 0001 and 0002. The `\connect`
 and `\ir` commands require psql. Database creation cannot be part of the schema
 transaction; if the migration fails, the empty database remains for a retry.
 
@@ -35,6 +35,17 @@ it deliberately fails on existing tables instead of hiding schema differences.
 Record applied migration versions in your deployment process and add subsequent
 numbered migrations for future changes. No existing database is dropped or reset.
 
+Apply `migrations/0002_cache_objects.sql` next, including on existing installations:
+
+```powershell
+psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0002_cache_objects.sql
+```
+
+This adds `cache_objects` for shared capacity reservations and cleanup of uploaded
+objects after crashes or failed database commits. Existing asset objects are
+included in its initial accounting. Run `pnpm cache:worker` alongside the app to
+process jobs when `AUDIO_CACHE_ENABLED=true`; see the root README for configuration.
+
 ## Schema behavior
 
 - Catalog identity is `(provider, provider_track_id, storefront)`. Normalize
@@ -47,8 +58,8 @@ numbered migrations for future changes. No existing database is dropped or reset
   verify that the private storage object is complete and readable. Sizes and
   durations cannot be negative; floating durations also reject infinity/NaN.
 - Only one queued/running cache job is allowed per asset. Running jobs require
-  a complete lease; other states require cleared lease fields. Worker claim,
-  renewal, retry, and stale-token protection still belong in application code.
+  a complete lease; other states require cleared lease fields. The cache worker
+  implements claims, renewable leases, bounded retries, and stale-token protection.
 - Playlist entries permit repeated songs. To reorder, use a transaction with
   `SET CONSTRAINTS playlist_items_order DEFERRED`, then assign distinct final
   positions before commit. Server operations must check and increment the
