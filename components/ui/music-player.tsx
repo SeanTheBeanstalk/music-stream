@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlayback } from "@/components/playback/playback-provider";
@@ -9,6 +10,24 @@ import { RepeatControl } from "@/components/playback/repeat-control";
 import { TrackCover } from "@/components/music/track-cover";
 
 export function MusicPlayer() {
+  const playerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    const updateHeight = () => {
+      document.documentElement.style.setProperty(
+        "--music-player-height",
+        `${player.getBoundingClientRect().height}px`
+      );
+    };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(player);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--music-player-height");
+    };
+  }, []);
   const p = usePlayback();
   const upcoming = p.queue.tracks.slice(p.queue.index + 1);
   const details = p.track
@@ -19,6 +38,7 @@ export function MusicPlayer() {
     : null;
   return (
     <footer
+      ref={playerRef}
       aria-label="Music player"
       className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-5 py-4 backdrop-blur-md sm:px-8"
     >

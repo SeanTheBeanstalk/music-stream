@@ -2,18 +2,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Library, Music2, Search } from "lucide-react";
+import { SidebarAccount } from "@/components/library/sidebar-account";
 import { cn } from "@/lib/utils";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className="min-h-svh pb-64 sm:pb-56">
+    <div className="min-h-svh pb-[var(--music-player-height,16rem)]">
       <a
         href="#main"
         className="sr-only z-50 bg-background p-4 focus:not-sr-only focus:fixed"
       >
         Skip to content
       </a>
-      <aside className="border-b bg-sidebar md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:pb-56">
+      <aside className="flex flex-col border-b bg-sidebar md:fixed md:top-0 md:bottom-[var(--music-player-height,10rem)] md:left-0 md:w-56 md:overflow-y-auto md:border-r">
         <div className="flex items-center gap-3 p-6 text-lg font-semibold">
           <Music2 aria-hidden="true" />
           Streamify
@@ -43,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+        <SidebarAccount />
       </aside>
       <main
         id="main"

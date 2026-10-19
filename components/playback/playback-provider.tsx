@@ -73,6 +73,7 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     volume,
     seekable,
     play: (track: Track) => dispatch({ type: "play", track }),
+    playMany: (tracks: Track[]) => dispatch({ type: "play-many", tracks }),
     enqueue: (track: Track) => dispatch({ type: "enqueue", track }),
     playQueued: (index: number) => dispatch({ type: "select", index }),
     removeQueued: (index: number) => dispatch({ type: "remove", index }),

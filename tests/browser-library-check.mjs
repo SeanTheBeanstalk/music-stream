@@ -150,7 +150,7 @@ try {
   await fill("input[name=username]", username);
   await fill("input[name=password]", password);
   await click("Create account");
-  await until("document.body.innerText.includes('Signed in as')");
+  await until(`document.querySelector('aside')?.innerText.includes(${JSON.stringify(username)})`);
   await click("Create playlist");
   await fill("input[name=name]", "Edge favorites");
   await click("Create");
@@ -199,7 +199,7 @@ try {
     "document.querySelector('main').innerText.includes('Library browser fixture')"
   );
   await send("Page.reload");
-  await until("document.body.innerText.includes('Signed in as')");
+  await until(`document.querySelector('aside')?.innerText.includes(${JSON.stringify(username)})`);
   await click("Liked Songs");
   await until(
     "document.querySelector('main').innerText.includes('Library browser fixture')"
@@ -210,6 +210,10 @@ try {
     "document.querySelector('main').innerText.includes('Library browser fixture')"
   );
   // Add a second occurrence and reorder via keyboard-accessible buttons.
+  await evaluate(
+    "document.querySelector('main ol li button[aria-label^=\"Actions for\"]').click()"
+  );
+  await until("!!document.querySelector('[data-slot=popover-content]')");
   await click("Add to playlist");
   await click("Edge favorites");
   await until("document.querySelectorAll('main ol > li').length===2");

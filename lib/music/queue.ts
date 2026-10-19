@@ -6,6 +6,7 @@ export interface QueueState {
   revision: number;
 }
 export type QueueAction =
+  | { type: "play-many"; tracks: Track[] }
   | { type: "ended"; repeatMode: RepeatMode }
   | { type: "play" | "enqueue"; track: Track }
   | { type: "next" | "previous" | "clear-upcoming" }
@@ -17,6 +18,13 @@ export function queueReducer(
   action: QueueAction
 ): QueueState {
   switch (action.type) {
+    case "play-many": {
+      if (!action.tracks.length) return state;
+      const index = state.index + 1;
+      const tracks = [...state.tracks];
+      tracks.splice(index, 0, ...action.tracks);
+      return { tracks, index, revision: state.revision + 1 };
+    }
     case "ended":
       // An ending event must never start an idle or empty queue.
       if (!state.tracks[state.index]) return state;

@@ -15,6 +15,27 @@ const first = normalizeTrack({
   duration: 123,
 });
 const second = normalizeTrack({ id: "dQw4w9WgXcQ", title: "Second" });
+test("playlist playback inserts ordered duplicate entries before existing upcoming music", () => {
+  const state = queueReducer(
+    queueReducer(emptyQueue, { type: "play", track: first }),
+    { type: "enqueue", track: second }
+  );
+  const result = queueReducer(state, {
+    type: "play-many",
+    tracks: [second, first, second],
+  });
+  assert.deepEqual(result.tracks, [first, second, first, second, second]);
+  assert.equal(result.index, 1);
+  assert.equal(result.revision, state.revision + 1);
+  assert.deepEqual(state.tracks, [first, second]);
+  assert.equal(queueReducer(result, { type: "play-many", tracks: [] }), result);
+  const fresh = queueReducer(emptyQueue, {
+    type: "play-many",
+    tracks: [second, first],
+  });
+  assert.equal(fresh.index, 0);
+  assert.deepEqual(fresh.tracks, [second, first]);
+});
 test("normalizes the first result and preserves its canonical identity", () => {
   assert.deepEqual(normalizeTrack({ entries: [first, second] }), first);
   assert.equal(first.url, "https://www.youtube.com/watch?v=rboiHxBqdZk");

@@ -150,6 +150,8 @@ cache fills, long tracks, or authenticated libraries.
 - [x] Cached-playback regression tests for full/ranged responses, missing-object invalidation, storage-failure fallback, 416 responses, and request/consumer cancellation.
 - [x] Audio-cache worker regression tests for configuration limits, media inspection, upload/read-back verification before publication, failed publication cleanup, shutdown, download limits, and deletion capacity accounting.
 - [x] Optional PostgreSQL audio-cache integration tests for concurrent enqueue/claims, lease recovery, stale-worker rejection, retries, and capacity reservations.
+- [x] Account and library regression tests for input validation, request safeguards, password hashing, session cookies, and transactional rollback; optional PostgreSQL integration coverage for ownership, revision conflicts, duplicate playlist ordering, session expiry/revocation, and persistent catalog/source metadata.
+- [x] Library browser regression script (`tests/browser-library-check.mjs`) using fixture catalog/audio and real account/library routes with PostgreSQL for saving, playlist edits, reload/reauthentication, navigation playback, keyboard access, and responsive layouts; recorded Edge verification appears below.
 - [x] Application storage browser regression script (`tests/browser-storage-integration-check.mjs`) covering the production stream route with private R2 audio, range responses, browser duration, seeking, and playback; recorded live Edge verification appears above.
 - [x] Browser smoke-test script covering live search/playback, seeking, keyboard controls, navigation persistence, mobile overflow, stale results, and empty/error states.
 - [x] Browser queue regression script with stubbed search/audio covering selection, removal, reordering, clearing, navigation persistence, keyboard controls, focus handling, and layouts at 320, 375, 768, and 1280 pixels.
@@ -160,9 +162,9 @@ cache fills, long tracks, or authenticated libraries.
 
 Verification during the 2026-10-19 review: `pnpm test` passed all **47 tests**; `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. Browser scripts and live-source playback checks were not run during this review. Checked browser-script items record available coverage, not a fresh successful browser run.
 
-Latest checklist refresh on 2026-10-19: `pnpm test` discovered **79 tests**:
-**77 passed, two skipped**, with no failures. The metadata repository and
-audio-cache PostgreSQL integration tests skipped because `TEST_DATABASE_URL`
+Latest checklist refresh on 2026-10-19: `pnpm test` discovered **84 tests**:
+**81 passed, three skipped**, with no failures. The metadata repository,
+audio-cache, and account/library PostgreSQL integration tests skipped because `TEST_DATABASE_URL`
 was not configured. This refresh changes
 documentation only; lint, typecheck, build, browser scripts, PostgreSQL checks,
 and live-provider checks were not rerun. Earlier recorded verification results
@@ -196,15 +198,30 @@ The original live smoke query, "daft punk get lucky", returned a recoverable no-
 - [ ] Validate production worker supervision, database/storage outages under load, and operational monitoring before deployment.
 - [x] Library screen and navigation, with empty states and liked songs. Use [library-ui-mockup.png](./library-ui-mockup.png) as the visual reference for the Library layout, liked-song and playlist cards, create/rename/delete controls, and persistent player; adapt the design for mobile and keyboard access using existing UI primitives.
 - [x] Personal playlists with create, rename, delete, add/remove track, and ordering operations, covered by meaningful tests.
+- [x] Playlist detail layout based on `playlist-ui.png`: large artwork, playlist metadata, red Play/Shuffle controls, compact numbered rows with alternating backgrounds, durations, explicit badges, and song-action popovers. Retain editing/saving actions and the shared player; adapt the layout for mobile and keyboard access.
+
 - [x] Like and Add to playlist actions that save catalog identity, storefront, and metadata without requiring audio resolution; preserve an existing playback-source mapping when present.
 - [x] Persistent library storage so likes and playlists survive a reload, kept separate from transient playback state.
 - [x] Username/password accounts and account-backed library access from independent sessions. Physical cross-device verification remains open.
+- [ ] Verify account-backed likes and playlists on physical devices across independent sessions.
 - [ ] Listening history, recently played tracks, and featured playlists on Home.
 - [x] Artist and album records populated from structured iTunes metadata, leaving missing fields unknown and retaining source provenance and storefront.
 - [ ] Verify seeking and duration against the actual audio source across supported browsers.
 - [ ] Validate desktop/mobile playback under slow connections, failed requests, and listener disconnects.
 - [x] Complete the search/save/play/reload browser journey using fixture catalog/audio and real library persistence. Live-provider and physical-device checks remain open.
+- [ ] Complete live-provider search → play → save → reload in Edge with account-backed library persistence.
 - [ ] Confirm deployment requirements and select hosting that supports subprocesses and audio proxying.
+
+Playlist UI validation on **2026-10-19**: `pnpm lint`, `pnpm typecheck`, and
+`pnpm build` passed. `pnpm test` discovered **85 tests**: **82 passed**, with
+the three PostgreSQL integration tests skipped without `TEST_DATABASE_URL`.
+The dedicated Edge fixture check (`tests/browser-playlist-ui-check.mjs`)
+passed Play/Shuffle, duplicate queue entries, recoverable resolution errors,
+keyboard popover activation/focus restoration, reorder/remove, empty playlists,
+and layouts at 320/375/768/1440px. This UI check mocks library and music APIs;
+it does not establish live-provider playback or database persistence. The existing
+database-backed browser script was adapted to open song actions from the new
+popover, but was not rerun during this UI change.
 
 Library implementation validation on **2026-10-19**: all **84 tests** passed
 against isolated PostgreSQL **18.6**, including ownership, concurrent revisions,

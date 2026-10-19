@@ -20,13 +20,12 @@ import { PlaylistEditor } from "./playlist-editor";
 import { LibrarySongs } from "./library-songs";
 
 export function LibraryView() {
-  const { library, loading, error, refresh, account, busy } = useLibrary();
+  const { library, loading, error, refresh } = useLibrary();
   const [tab, setTab] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recent");
   const [list, setList] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
   const playlist = library.playlists.find((p) => p.id === selected);
   const liked = selected === "likes";
   const detail = liked || !!playlist;
@@ -39,17 +38,18 @@ export function LibraryView() {
     );
   return (
     <div className="mx-auto max-w-6xl space-y-7">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-4xl font-semibold tracking-tight sm:text-5xl">
-            Your Library
-          </h1>
-          <p className="mt-3 text-muted-foreground">
-            Your liked songs and playlists, all in one place.
-          </p>
-        </div>
-        {library.user && <PlaylistEditor />}
-      </header>
+      {!detail && (
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-4xl font-semibold tracking-tight sm:text-5xl">
+              Your Library
+            </h1>
+            <p className="mt-3 text-muted-foreground">
+              Your liked songs and playlists, all in one place.
+            </p>
+          </div>
+        </header>
+      )}
       {loading ? (
         <p role="status">Loading your library…</p>
       ) : error ? (
@@ -63,43 +63,12 @@ export function LibraryView() {
         <AccountForm />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span>Signed in as {library.user.name}</span>
-            <Button
-              variant="ghost"
-              disabled={busy}
-              onClick={async () => {
-                try {
-                  await account("logout");
-                  setSelected(null);
-                } catch (e) {
-                  setMessage(
-                    e instanceof Error ? e.message : "Unable to sign out."
-                  );
-                }
-              }}
-            >
-              Sign out
-            </Button>
-          </div>
           {detail ? (
             <section className="space-y-6">
               <Button variant="ghost" onClick={() => setSelected(null)}>
                 <ArrowLeft aria-hidden="true" />
                 Back to library
               </Button>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-3xl font-semibold wrap-break-word">
-                    {liked ? "Liked Songs" : playlist!.name}
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {liked ? library.likes.length : playlist!.items.length}{" "}
-                    songs
-                  </p>
-                </div>
-                {playlist && <PlaylistEditor playlist={playlist} />}
-              </div>
               <LibrarySongs
                 key={selected}
                 songs={
@@ -281,6 +250,9 @@ export function LibraryView() {
                       </div>
                     </article>
                   ))}
+                {tab !== "likes" && (
+                  <PlaylistEditor layout={list ? "list" : "grid"} />
+                )}
               </div>
               {tab !== "likes" && playlists.length === 0 && (
                 <p className="border border-dashed p-6 text-muted-foreground">
@@ -299,9 +271,6 @@ export function LibraryView() {
           )}
         </>
       )}
-      <p role="status" className="text-sm text-muted-foreground">
-        {message}
-      </p>
     </div>
   );
 }

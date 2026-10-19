@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
@@ -13,7 +14,14 @@ import {
 import type { Playlist } from "@/lib/music/library";
 import { useLibrary } from "./library-provider";
 
-export function PlaylistEditor({ playlist }: { playlist?: Playlist }) {
+export function PlaylistEditor({
+  playlist,
+  layout = "button",
+}: {
+  playlist?: Playlist;
+  layout?: "button" | "grid" | "list";
+}) {
+  const tile = !playlist && layout !== "button";
   const { mutate, busy } = useLibrary();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -45,9 +53,16 @@ export function PlaylistEditor({ playlist }: { playlist?: Playlist }) {
       <PopoverTrigger
         render={
           <Button
-            variant={playlist ? "ghost" : "default"}
+            variant={tile ? "outline" : playlist ? "ghost" : "default"}
             size={playlist ? "icon" : "default"}
             aria-label={playlist ? `Edit ${playlist.name}` : undefined}
+            className={cn(
+              tile &&
+                "w-full rounded-lg border-dashed text-sm font-medium tracking-normal whitespace-normal text-muted-foreground normal-case hover:text-foreground",
+              tile && layout === "grid" &&
+                "aspect-square h-auto flex-col gap-4 self-start p-6",
+              tile && layout === "list" && "h-auto min-h-26 gap-4 p-3"
+            )}
           />
         }
       >
@@ -55,7 +70,10 @@ export function PlaylistEditor({ playlist }: { playlist?: Playlist }) {
           <MoreHorizontal aria-hidden="true" />
         ) : (
           <>
-            <Plus aria-hidden="true" />
+            <Plus
+              aria-hidden="true"
+              className={tile ? "size-12 rounded-full border p-2" : undefined}
+            />
             Create playlist
           </>
         )}
