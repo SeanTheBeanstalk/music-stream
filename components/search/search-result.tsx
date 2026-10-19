@@ -5,6 +5,7 @@ import { TrackActions } from "./track-actions";
 import type { Track } from "@/lib/music/track";
 import { TrackMetadata } from "@/components/music/track-metadata";
 import type { CatalogTrack } from "@/lib/music/catalog";
+import { SaveActions } from "@/components/library/save-actions";
 export function SearchResult({
   track,
   pendingActionRef,
@@ -32,6 +33,7 @@ export function SearchResult({
           pendingActionRef={pendingActionRef}
           onResolved={setSource}
         />
+        <SaveActions track={track} />
       </div>
     </article>
   );

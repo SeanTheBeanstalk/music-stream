@@ -17,7 +17,7 @@ psql -X -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -f database/crea
 ```
 
 `psql` prompts for a password if required. The bootstrap creates `music_stream`,
-connects to it, and applies migrations 0001 and 0002. The `\connect`
+connects to it, and applies migrations 0001, 0002, and 0003. The `\connect`
 and `\ir` commands require psql. Database creation cannot be part of the schema
 transaction; if the migration fails, the empty database remains for a retry.
 
@@ -47,6 +47,16 @@ included in its initial accounting. Run `pnpm cache:worker` alongside the app to
 process jobs when `AUDIO_CACHE_ENABLED=true`; see the root README for configuration.
 
 ## Schema behavior
+
+Apply `migrations/0003_library_accounts.sql` next for Library username/password
+accounts, hashed opaque sessions, and shared sign-in throttling. It adds three
+tables and leaves existing users, likes, playlists, and catalog/source data
+intact. The application does not automatically migrate an existing database.
+See the root README for sign-in behavior and the isolated library browser check.
+
+```powershell
+psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0003_library_accounts.sql
+```
 
 - Catalog identity is `(provider, provider_track_id, storefront)`. Normalize
   storefronts to uppercase two-letter country codes and validate them against

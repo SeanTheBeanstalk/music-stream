@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music2, Search } from "lucide-react";
+import { Home, Library, Music2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,13 +25,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {[
             { href: "/", label: "Home", icon: Home },
             { href: "/search", label: "Search", icon: Search },
+            { href: "/library", label: "Library", icon: Library },
           ].map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               aria-current={pathname === href ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted focus-visible:outline-2",
+                "flex items-center gap-2 px-3 py-3 text-sm transition-colors hover:bg-muted focus-visible:outline-2 sm:gap-3 sm:px-4",
                 pathname === href
                   ? "bg-muted font-semibold"
                   : "text-muted-foreground"

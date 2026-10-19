@@ -22,9 +22,63 @@ produces a recoverable error and leaves playback and the queue unchanged.
 Catalog IDs and artist/album records remain separate from video IDs; repeated
 queue selections and legacy YouTube-only entries remain supported. Inspect the
 resolved upload's title, uploader and YouTube link in its result card.
-Playback continues between Home and Search. Queue data stays in memory;
-likes and playlists belong to the authenticated library phase. Optional Postgres
+Playback continues between Home, Search, and Library. Queue data stays in memory;
+account-owned likes and playlists persist in PostgreSQL. Optional Postgres
 storage persists shared catalog metadata and selected YouTube mappings.
+
+## Library and accounts
+
+Apply `database/migrations/0003_library_accounts.sql` after migrations 0001 and
+0002, using the database configured by server-only `DATABASE_URL`. New databases
+created with `database/create-database.sql` include all three migrations.
+No new dependencies or authentication service credentials are required.
+
+Open **Library**, create a username/password account, then use **Like** or
+**Add to playlist** on a search result. Saving stores catalog identity and
+storefront without resolving or downloading audio. Existing selected source
+mappings are retained. Library supports playlist creation, renaming, confirmed
+deletion, repeated songs, removing entries, and keyboard-accessible Up/Down
+ordering. Grid/list views, name filtering, and name/recent sorting follow the
+Library mockup. Play and Add to queue resolve a saved song only when requested.
+
+Sign in to the same account on another browser/device to access saved music.
+Library data survives reloads; the playback queue remains transient. Accounts
+use case-insensitive usernames (3–32 letters, numbers, underscores), passwords
+of 12–128 characters, salted scrypt password hashes, and 30-day random sessions.
+Only token hashes are stored; session cookies are HttpOnly, SameSite=Lax, and
+Secure in production. Serve production over HTTPS and preserve the public Host
+and request protocol through your reverse proxy. Sign out revokes that session;
+other devices stay signed in. This initial account flow has no password recovery
+or email verification, so keep your credentials accessible.
+
+Every library request resolves ownership from its session. Playlist edits lock
+the owner and playlist, check the revision, and commit changes transactionally.
+A conflicting edit refreshes the library and asks you to review and retry.
+Library requests return private, noncached responses. Account attempts are
+limited in PostgreSQL to 10 per username and 100 globally per 15 minutes.
+Expired session/attempt records are pruned after successful sign-in. Database
+failures show a retryable library error and do not interrupt playback.
+
+`pnpm test` includes validation, password/session, and rollback checks. Set
+`TEST_DATABASE_URL` to an **isolated database** with all migrations applied to
+also run real ownership, session expiry/revocation, duplicate-entry ordering,
+concurrent revision conflict, metadata-preservation, and reload tests.
+For the browser journey, start a production app with `DATABASE_URL` pointing to
+that same isolated database, disable audio caching, and launch headless Edge
+with a dedicated profile and `--remote-debugging-port=9226`. Set `TEST_ORIGIN`
+to its app URL, then run:
+
+```sh
+node --conditions=react-server --experimental-strip-types tests/browser-library-check.mjs
+```
+
+`TEST_CDP` overrides the debugging endpoint; `TEST_SCREENSHOT` optionally saves
+a PNG. The check uses real account/library HTTP and PostgreSQL with fixture
+catalog search and audio. It checks saving before resolution, playlist edits,
+reload and reauthentication, playback across navigation, keyboard access, and
+320/375/768/1280px layouts. It removes its database fixtures afterward. Live
+YouTube playback, physical devices, and production identity operations remain
+separate validation.
 
 Catalog covers use validated iTunes artwork URLs, loaded directly by the browser.
 Missing or failed images fall back to a music icon. Artwork media is not proxied

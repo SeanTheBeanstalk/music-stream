@@ -2,9 +2,9 @@
 
 ## Current Foundation
 
-The repository has a Next.js/TypeScript foundation, Tailwind styling, responsive Home and Search screens, a shared audio player with an interactive queue panel, and YouTube search, metadata, and audio streaming routes backed by `yt-dlp`. Search uses the iTunes Search API for structured catalog metadata and resolves selected tracks to title-and-artist YouTube matches on demand, retaining YouTube for playback. Optional PostgreSQL repositories persist catalog/source metadata and selected mappings. With `AUDIO_CACHE_ENABLED=true`, playback requests enqueue durable fills processed by `pnpm cache:worker`, which verifies and uploads audio to R2 and publishes ready assets in PostgreSQL. The stream route serves ready private assets with either that switch or `R2_PLAYBACK_ENABLED=true`, falling back to YouTube on cache misses or recoverable storage failures. Persistent user libraries remain planned.
+The repository has a Next.js/TypeScript foundation, Tailwind styling, responsive Home, Search, and Library screens, a shared audio player with an interactive queue panel, and YouTube search, metadata, and audio streaming routes backed by `yt-dlp`. Search uses the iTunes Search API for structured catalog metadata and resolves selected tracks to title-and-artist YouTube matches on demand, retaining YouTube for playback. Optional PostgreSQL repositories persist catalog/source metadata and selected mappings. With `AUDIO_CACHE_ENABLED=true`, playback requests enqueue durable fills processed by `pnpm cache:worker`, which verifies and uploads audio to R2 and publishes ready assets in PostgreSQL. The stream route serves ready private assets with either that switch or `R2_PLAYBACK_ENABLED=true`, falling back to YouTube on cache misses or recoverable storage failures. Account-owned likes and ordered playlists now persist in PostgreSQL with migration 0003.
 
-Last reviewed: **2026-10-19**, against the current working tree (package version **0.0.1**). The app currently delivers search, play, and queue; the first search → play → save milestone remains incomplete because saving is not implemented. Home is a landing page, and navigation currently includes Home and Search only.
+Last reviewed: **2026-10-19**, against the current working tree (package version **0.0.1**). The app delivers search, play, queue, and account-owned saving. Home is a landing page; navigation includes Home, Search, and Library. Library browser checks use fixture catalog/audio and real account/library HTTP plus PostgreSQL; live-provider saving and physical cross-device checks remain separate validation.
 
 ## Feature Checklist
 
@@ -25,7 +25,7 @@ Last reviewed: **2026-10-19**, against the current working tree (package version
 - [x] Connect server-side repositories and shared metadata/mapping persistence
   to search, resolution, and source metadata inspection.
 - [x] Connect durable cache jobs and worker uploads to playback and PostgreSQL.
-- [ ] Connect authenticated library operations.
+- [x] Connect authenticated library operations, with server-owned sessions and transactional revision checks.
 
 ### Cloudflare R2 Storage Foundation
 
@@ -148,18 +148,22 @@ cache fills, long tracks, or authenticated libraries.
 - [x] Unit tests for catalog normalization and provenance, separate catalog/video identities, title-and-artist matching, cache coalescing and cancellation, storefront isolation, request budgets, upstream errors, the five-result limit, and player metadata.
 - [x] Persistence regression tests for stored mapping reuse, trusted catalog writes, stale metadata fallback, database-failure fallback, and cancellation; optional PostgreSQL integration coverage for concurrent selections, storefront isolation, freshness, and asset-version safety.
 - [x] Cached-playback regression tests for full/ranged responses, missing-object invalidation, storage-failure fallback, 416 responses, and request/consumer cancellation.
+- [x] Audio-cache worker regression tests for configuration limits, media inspection, upload/read-back verification before publication, failed publication cleanup, shutdown, download limits, and deletion capacity accounting.
+- [x] Optional PostgreSQL audio-cache integration tests for concurrent enqueue/claims, lease recovery, stale-worker rejection, retries, and capacity reservations.
 - [x] Application storage browser regression script (`tests/browser-storage-integration-check.mjs`) covering the production stream route with private R2 audio, range responses, browser duration, seeking, and playback; recorded live Edge verification appears above.
 - [x] Browser smoke-test script covering live search/playback, seeking, keyboard controls, navigation persistence, mobile overflow, stale results, and empty/error states.
 - [x] Browser queue regression script with stubbed search/audio covering selection, removal, reordering, clearing, navigation persistence, keyboard controls, focus handling, and layouts at 320, 375, 768, and 1280 pixels.
 - [x] Browser catalog regression script with stubbed catalog/resolution/audio covering submit-only search, storefront selection, details popups, keyboard access, failed-match safety and retry, stale searches/actions, empty/throttled states, playback preservation, and responsive layouts.
 - [x] Browser retry regression script (`tests/browser-retry-check.mjs`) using real Edge media playback with stubbed HTTP 502 and WAV responses to check automatic recovery, pause cancellation, and recovery after a partial response. This does not validate the live YouTube source.
 - [x] README setup instructions for Node.js, pnpm, `yt-dlp`, environment configuration, checks, and manual/browser validation.
+- [x] `RUNNING.md` startup guide covering separate website/worker terminals, PostgreSQL migrations, private R2 configuration, ffprobe, and cache troubleshooting.
 
 Verification during the 2026-10-19 review: `pnpm test` passed all **47 tests**; `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. Browser scripts and live-source playback checks were not run during this review. Checked browser-script items record available coverage, not a fresh successful browser run.
 
-Latest checklist refresh on 2026-10-19: `pnpm test` discovered **68 tests**:
-**67 passed, one skipped**, with no failures. The PostgreSQL integration test
-skipped because `TEST_DATABASE_URL` was not configured. This refresh changes
+Latest checklist refresh on 2026-10-19: `pnpm test` discovered **79 tests**:
+**77 passed, two skipped**, with no failures. The metadata repository and
+audio-cache PostgreSQL integration tests skipped because `TEST_DATABASE_URL`
+was not configured. This refresh changes
 documentation only; lint, typecheck, build, browser scripts, PostgreSQL checks,
 and live-provider checks were not rerun. Earlier recorded verification results
 retain their original scope.
@@ -186,28 +190,43 @@ The original live smoke query, "daft punk get lucky", returned a recoverable no-
 - [x] PostgreSQL schema, versioned migration, setup documentation, and rollback-only constraint checks; isolated database verification recorded above.
 - [x] Private R2 storage adapter, manual CLI, and offline regression tests; live storage and Edge seeking verification recorded above.
 - [x] Connect server-side repositories and durable catalog/source mapping persistence to PostgreSQL.
-- [x] Integrate ready, unexpired R2 assets into the application stream route behind `R2_PLAYBACK_ENABLED`, preserving private ranged delivery, missing-object invalidation, and YouTube fallback.
+- [x] Integrate ready, unexpired R2 assets into the application stream route with `AUDIO_CACHE_ENABLED=true` or `R2_PLAYBACK_ENABLED=true`, preserving private ranged delivery, missing-object invalidation, and YouTube fallback.
 - [x] Implement durable cache-fill jobs and workers, lease recovery, verified publication, unpublished-object cleanup, and eviction.
-- [ ] Library screen and navigation, with empty states and liked songs.
-- [ ] Personal playlists with create, rename, delete, add/remove track, and ordering operations, covered by meaningful tests.
-- [ ] Like and Add to playlist actions that save catalog identity, storefront, and metadata without requiring audio resolution; preserve an existing playback-source mapping when present.
-- [ ] Persistent library storage so likes and playlists survive a reload, kept separate from transient playback state.
-- [ ] Accounts and cross-device library access.
+- [ ] Verify automatic cache miss → worker fill → cache hit with real YouTube audio through the application in Edge, including a long track; generated-audio storage checks do not establish this full flow.
+- [ ] Validate production worker supervision, database/storage outages under load, and operational monitoring before deployment.
+- [x] Library screen and navigation, with empty states and liked songs. Use [library-ui-mockup.png](./library-ui-mockup.png) as the visual reference for the Library layout, liked-song and playlist cards, create/rename/delete controls, and persistent player; adapt the design for mobile and keyboard access using existing UI primitives.
+- [x] Personal playlists with create, rename, delete, add/remove track, and ordering operations, covered by meaningful tests.
+- [x] Like and Add to playlist actions that save catalog identity, storefront, and metadata without requiring audio resolution; preserve an existing playback-source mapping when present.
+- [x] Persistent library storage so likes and playlists survive a reload, kept separate from transient playback state.
+- [x] Username/password accounts and account-backed library access from independent sessions. Physical cross-device verification remains open.
 - [ ] Listening history, recently played tracks, and featured playlists on Home.
 - [x] Artist and album records populated from structured iTunes metadata, leaving missing fields unknown and retaining source provenance and storefront.
 - [ ] Verify seeking and duration against the actual audio source across supported browsers.
 - [ ] Validate desktop/mobile playback under slow connections, failed requests, and listener disconnects.
-- [ ] Complete the search-to-play-to-save browser journey once saving is implemented.
+- [x] Complete the search/save/play/reload browser journey using fixture catalog/audio and real library persistence. Live-provider and physical-device checks remain open.
 - [ ] Confirm deployment requirements and select hosting that supports subprocesses and audio proxying.
+
+Library implementation validation on **2026-10-19**: all **84 tests** passed
+against isolated PostgreSQL **18.6**, including ownership, concurrent revisions,
+transaction rollback, duplicate playlist entries, storefront isolation, trusted
+metadata/source preservation, session expiry/revocation, and durable reloads.
+`pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. The repeatable
+`tests/browser-library-check.mjs` passed in headless Edge using real account and
+library routes with PostgreSQL and fixture search/audio: catalog-only saving,
+playlist create/rename/delete/add/remove/reorder, playback across navigation,
+reload/reauthentication, keyboard access, and 320/375/768/1280px layouts.
+Migration 0003 was applied to the configured local application database.
+No packages were added. Physical devices, live-provider saving, password
+recovery, email verification, and production deployment checks are not covered.
 
 ### Recommended Next Steps
 
 1. **Finish the remaining playback and storage verification.** Recorded Edge checks cover live seeking, sustained playback, retry recovery, slow connections, and short private R2 audio through the application stream route. Isolated PostgreSQL checks cover schema constraints and concurrent repository selections. Verify an individual upstream transfer beyond 120 seconds, instrument the application's upstream cleanup after listener disconnect, and exercise real database outages and pool behavior under load. Keep long-track and broader browser/mobile verification open until exercised on those targets.
 2. **Validate automatic caching in deployment.** Playback misses now enqueue durable jobs; `pnpm cache:worker` handles bounded downloads, verified R2 uploads, PostgreSQL publication, lease recovery, cleanup, and budget-driven eviction. Automated checks cover concurrent misses, interrupted uploads, stale leases, retries, and capacity. Keep production outage/load, host process supervision, and long-track checks open.
-3. **Complete the save part of the first milestone.** Add authenticated ownership before exposing shared-database library writes, then connect the Library screen, catalog-only likes, personal playlists, and storage that survives reloads. Preserve storefront and any selected video mapping, keep library state separate from playback, and cover playlist operations plus the search → play → save → reload journey. Verify cross-device access once account-backed libraries are connected.
+3. **Validate account-backed libraries on deployment targets.** Library saving, playlist edits, ownership, and persistence are implemented. Verify live-provider search → play → save → reload, physical cross-device access, HTTPS/proxy configuration, and production account operations. The initial username/password flow has no password recovery or email verification.
 4. **Prepare deployment after the core journey is verified.** Confirm a Node host can run `yt-dlp` and proxy audio, then validate stream lifetimes, disconnect cleanup, and the iTunes request budget for the intended worker count.
 
-The five phases below remain the implementation roadmap. The catalog integration is implemented; live audio reliability, library storage, and deployment verification remain open. Search supports a curated set of storefronts; JSON caches and coalescing are worker-local, and static worker budgets require ITUNES_WORKER_COUNT configuration across every worker.
+The five phases below remain the implementation roadmap. Catalog integration and account-owned library storage are implemented; broader live audio reliability and deployment verification remain open. Search supports a curated set of storefronts; JSON caches and coalescing are worker-local, and static worker budgets require ITUNES_WORKER_COUNT configuration across every worker.
 
 Build the app in five phases, with a working **search → play → save** experience as the first milestone.
 
