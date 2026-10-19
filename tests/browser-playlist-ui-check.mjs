@@ -158,19 +158,39 @@ try {
   await until(
     "document.querySelectorAll('ol[aria-label=\"Playlist songs\"] > li').length === 3"
   );
-  // Activate the row popover with the keyboard and verify focus restoration.
+  // Activate the row dropdown with the keyboard and verify focus restoration.
   await evaluate(
     "document.querySelector('button[aria-label=\"Actions for GET IT, entry 1\"]').focus()"
   );
   await key("Enter");
-  await until("!!document.querySelector('[data-slot=popover-content]')");
+  await until("!!document.querySelector('[data-slot=dropdown-menu-content]')");
   assert.ok(
     await evaluate(
-      "document.body.textContent.includes('Add to queue') && document.body.textContent.includes('Remove')"
+      "document.body.textContent.includes('Add to queue') && document.body.textContent.includes('Remove from playlist')"
     )
   );
+  assert.deepEqual(
+    await evaluate(
+      "Array.from(document.querySelectorAll('[role=menuitem]')).map(el => el.textContent.trim())"
+    ),
+    [
+      "Play",
+      "Add to queue",
+      "Like",
+      "Add to playlist",
+      "Move up",
+      "Move down",
+      "Remove from playlist",
+    ]
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('[role=menuitem]')[4].getAttribute('aria-disabled')"
+    ),
+    "true"
+  );
   await key("Escape");
-  await until("!document.querySelector('[data-slot=popover-content]')");
+  await until("!document.querySelector('[data-slot=dropdown-menu-content]')");
   assert.equal(
     await evaluate("document.activeElement.getAttribute('aria-label')"),
     "Actions for GET IT, entry 1"
@@ -212,15 +232,17 @@ try {
   );
   failResolve = false;
   await click('button[aria-label="Actions for GET IT, entry 1"]');
-  await until("!!document.querySelector('[data-slot=popover-content]')");
-  await click('button[aria-label="Move GET IT, entry 1, down"]');
+  await until("!!document.querySelector('[data-slot=dropdown-menu-content]')");
+  await click('[role=menuitem][aria-label="Move GET IT, entry 1, down"]');
   await until(
     "document.querySelector('ol li button').getAttribute('aria-label') === 'Play SOMEBODY, entry 1'"
   );
   await key("Escape");
   await click('button[aria-label="Actions for SOMEBODY, entry 1"]');
-  await until("!!document.querySelector('[data-slot=popover-content]')");
-  await click('button[aria-label="Remove SOMEBODY, entry 1, from playlist"]');
+  await until("!!document.querySelector('[data-slot=dropdown-menu-content]')");
+  await click(
+    '[role=menuitem][aria-label="Remove SOMEBODY, entry 1, from playlist"]'
+  );
   await until(
     "document.querySelectorAll('ol[aria-label=\"Playlist songs\"] > li').length === 2"
   );
@@ -258,7 +280,7 @@ try {
     )
   );
   console.log(
-    "PASS: Edge fixture playlist UI; Play/Shuffle, duplicate queue entries, recoverable failure, keyboard popover/focus, reorder/remove, empty state, and 320/375/768/1440px layouts."
+    "PASS: Edge fixture playlist UI; Play/Shuffle, duplicate queue entries, recoverable failure, keyboard dropdown/focus, reorder/remove, empty state, and 320/375/768/1440px layouts."
   );
 } finally {
   socket.close();

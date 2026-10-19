@@ -1,19 +1,13 @@
 "use client";
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, MoreHorizontal, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { TrackMetadata } from "@/components/music/track-metadata";
-import { TrackActions } from "@/components/search/track-actions";
-import { SaveActions } from "./save-actions";
+import { TrackActionMenu } from "@/components/music/track-action-menu";
 import { useLibrary } from "./library-provider";
 import type { Playlist, PlaylistItem } from "@/lib/music/library";
 import { formatTime } from "@/lib/music/track";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { PlaylistHeader } from "./playlist-header";
 import { usePlaylistPlayback } from "./use-playlist-playback";
 
@@ -113,70 +107,43 @@ export function LibrarySongs({
             <span className="text-sm text-muted-foreground tabular-nums">
               {formatTime(track.duration)}
             </span>
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Actions for ${track.title}, entry ${index + 1}`}
-                    className="text-[#fa2448] dark:text-rose-400"
-                  />
-                }
-              >
-                <MoreHorizontal aria-hidden="true" />
-              </PopoverTrigger>
-              <PopoverContent className="space-y-3">
-                <PopoverTitle className="font-semibold wrap-break-word">
-                  {track.title}
-                </PopoverTitle>
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>{track.album.name ?? "Album unknown"}</span>
-                  <TrackMetadata catalog={track} />
-                </div>
-                <TrackActions
-                  key={`${track.id}:${track.country}`}
-                  track={track}
-                  pendingActionRef={pending}
-                  onResolved={() => {}}
-                />
-                <SaveActions track={track} />
-                {playlist && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy || index === 0}
-                      aria-label={`Move ${track.title}, entry ${index + 1}, up`}
-                      onClick={() => void edit(id, -1)}
-                    >
-                      <ArrowUp aria-hidden="true" />
-                      Up
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy || index === songs.length - 1}
-                      aria-label={`Move ${track.title}, entry ${index + 1}, down`}
-                      onClick={() => void edit(id, 1)}
-                    >
-                      <ArrowDown aria-hidden="true" />
-                      Down
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      aria-label={`Remove ${track.title}, entry ${index + 1}, from playlist`}
-                      onClick={() => void edit(id)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      Remove
-                    </Button>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+            <TrackActionMenu
+              key={`${track.id}:${track.country}`}
+              track={track}
+              pendingActionRef={pending}
+              onResolved={() => {}}
+              label={`Actions for ${track.title}, entry ${index + 1}`}
+              triggerClassName="text-[#fa2448] dark:text-rose-400"
+              className="contents"
+            >
+              {playlist && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={busy || index === 0}
+                    aria-label={`Move ${track.title}, entry ${index + 1}, up`}
+                    onClick={() => void edit(id, -1)}
+                  >
+                    Move up
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={busy || index === songs.length - 1}
+                    aria-label={`Move ${track.title}, entry ${index + 1}, down`}
+                    onClick={() => void edit(id, 1)}
+                  >
+                    Move down
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={busy}
+                    aria-label={`Remove ${track.title}, entry ${index + 1}, from playlist`}
+                    onClick={() => void edit(id)}
+                  >
+                    Remove from playlist
+                  </DropdownMenuItem>
+                </>
+              )}
+            </TrackActionMenu>
           </li>
         ))}
       </ol>

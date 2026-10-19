@@ -1,7 +1,7 @@
 "use client";
 import { TrackCover } from "@/components/music/track-cover";
 import { useState, type RefObject } from "react";
-import { SearchActions } from "./search-actions";
+import { TrackActionMenu } from "@/components/music/track-action-menu";
 import type { Track } from "@/lib/music/track";
 import { TrackMetadata } from "@/components/music/track-metadata";
 import type { CatalogTrack } from "@/lib/music/catalog";
@@ -33,7 +33,8 @@ export function SearchResult({
             {track.album.name ?? "Album unknown"}
           </p>
         </div>
-        <SearchActions
+        <TrackActionMenu
+          triggerClassName="absolute top-1 right-1"
           track={track}
           pendingActionRef={pendingActionRef}
           onResolved={setSource}

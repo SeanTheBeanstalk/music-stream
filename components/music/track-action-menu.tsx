@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Ellipsis } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,25 +14,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSaveActions } from "@/components/library/save-actions";
-import { useTrackActions } from "./track-actions";
+import { useTrackActions } from "@/components/search/track-actions";
 
-export function SearchActions(props: Parameters<typeof useTrackActions>[0]) {
+type TrackActionMenuProps = Parameters<typeof useTrackActions>[0] & {
+  triggerClassName?: string;
+  label?: string;
+  className?: string;
+  children?: ReactNode;
+};
+
+export function TrackActionMenu(props: TrackActionMenuProps) {
   const playback = useTrackActions(props);
   const saving = useSaveActions(props.track);
   const saveDisabled = saving.busy || saving.loading;
 
   return (
-    <div className="space-y-2">
+    <div className={props.className ?? "space-y-2"}>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-1 right-1"
+              className={props.triggerClassName}
             />
           }
-          aria-label={`Actions for ${props.track.title}`}
+          aria-label={props.label ?? `Actions for ${props.track.title}`}
         >
           <Ellipsis aria-hidden="true" />
         </DropdownMenuTrigger>
@@ -81,12 +89,19 @@ export function SearchActions(props: Parameters<typeof useTrackActions>[0]) {
               )}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          {props.children}
         </DropdownMenuContent>
       </DropdownMenu>
-      <p role="status" className="text-sm text-muted-foreground empty:hidden">
+      <p
+        role="status"
+        className="col-span-full text-sm text-muted-foreground empty:hidden"
+      >
         {playback.message}
       </p>
-      <p role="status" className="text-sm text-muted-foreground empty:hidden">
+      <p
+        role="status"
+        className="col-span-full text-sm text-muted-foreground empty:hidden"
+      >
         {saving.message}
         {!saving.library.user && saving.message && (
           <>
