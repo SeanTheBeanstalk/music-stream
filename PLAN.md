@@ -4,6 +4,8 @@
 
 The repository has a Next.js/TypeScript foundation, Tailwind styling, responsive Home and Search screens, a shared audio player with an interactive queue panel, and YouTube search, metadata, and audio streaming routes backed by `yt-dlp`. Search now uses the iTunes Search API for structured catalog metadata and resolves selected tracks to title-and-artist YouTube matches on demand, retaining YouTube for playback. Planned work also includes library features and persistent storage.
 
+Last reviewed: **2026-10-19**, against the current working tree (package version **0.0.1**). The app currently delivers search, play, and queue; the first search → play → save milestone remains incomplete because saving is not implemented. Home is a landing page, and navigation currently includes Home and Search only.
+
 ## Feature Checklist
 
 Checked items are implemented in the current working tree. They do not imply that live playback, browser compatibility, or deployment has been fully validated.
@@ -36,6 +38,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] One audio element and playback provider mounted in the root layout to preserve playback across Home/Search navigation.
 - [x] Playback and queue state separated from search UI and track normalization.
 - [x] Play/pause, previous/next, volume, elapsed time, and duration controls.
+- [x] Fixed-width elapsed/duration labels with tabular numerals to keep the seek bar stable as timestamps change.
 - [x] Player displays the catalog song title, artist, and album separately from YouTube upload metadata; playback timing uses the browser audio resource.
 - [x] Seek control enabled when the browser reports a seekable resource and finite duration.
 - [x] In-memory queue retaining selected video IDs and metadata without repeating text searches.
@@ -44,6 +47,7 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] Advance to the next queued track when playback ends; stop at the queue boundary when repeat is Off.
 - [x] Empty-player, empty-queue, end-of-queue, upcoming-track, and queued-count displays.
 - [x] Buffering and playback-failure messages with automatic retries (1s exponential backoff capped at 30s, no attempt limit), pause-to-cancel and skip controls; browser autoplay restrictions require Play.
+- [x] Restore the last playback position after failed-stream reloads; cancel pending retries on pause, track changes, and provider cleanup, and ignore stale play-promise failures.
 - [x] Visible, interactive queue panel showing the current track and upcoming tracks in playback order.
 - [x] Queue controls to play a queued track, remove tracks, reorder upcoming tracks, and clear upcoming tracks without interrupting current playback.
 - [x] Responsive, keyboard-accessible queue UI with empty states, status announcements, focus handling, and meaningful tests for queue interactions.
@@ -65,11 +69,28 @@ Checked items are implemented in the current working tree. They do not imply tha
 
 - [x] Unit tests for track normalization and canonical identity, queue order, replay, queue boundaries, queued selection, removal, reordering, clearing, and invalid edits.
 - [x] Unit tests for subprocess cancellation, missing executables, concurrency, output limits, failures, and timeouts.
+- [x] Unit tests for retry backoff, duplicate failure events, pause and track-change cancellation, stale play-promise failures, position restoration, and browser autoplay restrictions.
 - [x] Unit tests for catalog normalization and provenance, separate catalog/video identities, title-and-artist matching, cache coalescing and cancellation, storefront isolation, request budgets, upstream errors, the five-result limit, and player metadata.
 - [x] Browser smoke-test script covering live search/playback, seeking, keyboard controls, navigation persistence, mobile overflow, stale results, and empty/error states.
 - [x] Browser queue regression script with stubbed search/audio covering selection, removal, reordering, clearing, navigation persistence, keyboard controls, focus handling, and layouts at 320, 375, 768, and 1280 pixels.
 - [x] Browser catalog regression script with stubbed catalog/resolution/audio covering submit-only search, storefront selection, details popups, keyboard access, failed-match safety and retry, stale searches/actions, empty/throttled states, playback preservation, and responsive layouts.
+- [x] Browser retry regression script (`tests/browser-retry-check.mjs`, currently untracked) using real Edge media playback with stubbed HTTP 502 and WAV responses to check automatic recovery, pause cancellation, and recovery after a partial response. This does not validate the live YouTube source.
 - [x] README setup instructions for Node.js, pnpm, `yt-dlp`, environment configuration, checks, and manual/browser validation.
+
+Verification during the 2026-10-19 review: `pnpm test` passed all **47 tests**; `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. Browser scripts and live-source playback checks were not run during this review. Checked browser-script items record available coverage, not a fresh successful browser run.
+
+Follow-up Edge verification on 2026-10-19 (Edge **155.0.4283.62**, production server):
+
+- [x] Queue, catalog, and real-media/stubbed-response retry browser scripts pass. Queue keyboard/focus checks and layouts pass at 320, 375, 768, and 1280 pixels.
+- [x] Live iTunes search → YouTube resolution → playback passes for Rick Astley's "Never Gonna Give You Up" (`dQw4w9WgXcQ`). The browser reports **213.061 seconds**, a seekable range, and working seeking and keyboard seek/volume controls. Queueing, navigation persistence, and the mobile viewport smoke check pass.
+- [x] Live audio advances continuously past **140 seconds of wall time** without a media error or pause.
+- [x] Live seeking and playback pass with **32 KiB/s bandwidth and 250 ms latency**; forcing a stream reload offline triggers retries, and restoring connectivity resumes around the previous **160-second** position.
+- [x] Observe the live track's natural end after recovery, automatic advancement to the queued selection, and cancellation of a separate live stream request from the client. End/cancellation checks were also exercised separately after the sustained/offline test.
+- [ ] Verify an individual upstream transfer lasting longer than 120 seconds. Sustained playback can use buffered audio and does not prove this; the proxy's absolute 120-second timeout remains unchanged.
+- [ ] Instrument server-side upstream cleanup after listener disconnect; unit tests cover subprocess cancellation, but client cancellation alone cannot prove upstream cleanup.
+- [ ] Repeat on physical mobile devices and other supported browser engines. Edge viewport emulation establishes layout behavior only.
+
+The original live smoke query, "daft punk get lucky", returned a recoverable no-confident-match response for its first catalog result; it did not start audio. Matching rules were preserved. The smoke test now supports `TEST_QUERY`, defaults to the verified Rick Astley query, respects `TEST_ORIGIN` when selecting a tab, and recognizes result-card errors while waiting for playback. `tests/browser-live-playback-check.mjs` adds repeatable sustained/throttled/offline/end/cancellation checks after the smoke test.
 
 ### Remaining Roadmap and Verification
 
@@ -77,14 +98,23 @@ Checked items are implemented in the current working tree. They do not imply tha
 - [x] Structured iTunes track metadata in search results, with separate catalog and playback identities.
 - [x] Resolve selected catalog tracks on Play or Add to queue using core-title/artist evidence, compatible recording descriptors, ranked candidates, and one bounded fallback query.
 - [x] Display validated iTunes cover metadata in search, queue, and player with missing/broken-image fallbacks, as requested. Audio previews remain disabled.
-- [ ] Library screen, liked songs, personal playlists, and playlist operations with meaningful tests.
-- [ ] Persistent library storage, accounts, and cross-device access.
+- [ ] Library screen and navigation, with empty states and liked songs.
+- [ ] Personal playlists with create, rename, delete, add/remove track, and ordering operations, covered by meaningful tests.
+- [ ] Like and Add to playlist actions that save catalog identity, storefront, and metadata without requiring audio resolution; preserve an existing playback-source mapping when present.
+- [ ] Persistent library storage so likes and playlists survive a reload, kept separate from transient playback state.
+- [ ] Accounts and cross-device library access.
 - [ ] Listening history, recently played tracks, and featured playlists on Home.
 - [x] Artist and album records populated from structured iTunes metadata, leaving missing fields unknown and retaining source provenance and storefront.
 - [ ] Verify seeking and duration against the actual audio source across supported browsers.
 - [ ] Validate desktop/mobile playback under slow connections, failed requests, and listener disconnects.
 - [ ] Complete the search-to-play-to-save browser journey once saving is implemented.
 - [ ] Confirm deployment requirements and select hosting that supports subprocesses and audio proxying.
+
+### Recommended Next Steps
+
+1. **Verify live playback reliability in Edge first.** Run the existing browser checks, then test actual YouTube audio for duration, seeking, full-track playback (including tracks longer than the proxy's 120-second timeout), retry recovery, slow connections, and cancellation on listener disconnect. Record results separately from stubbed regression coverage; keep broader browser/mobile verification open until exercised on those targets.
+2. **Complete the save part of the first milestone.** Add the Library screen, catalog-only likes, personal playlists, and storage that survives reloads. Preserve storefront and any selected video mapping, keep library state separate from playback, and cover playlist operations plus the search → play → save → reload journey. Accounts and cross-device sync follow as a separate step.
+3. **Prepare deployment after the core journey is verified.** Confirm a Node host can run `yt-dlp` and proxy audio, then validate stream lifetimes, disconnect cleanup, and the iTunes request budget for the intended worker count.
 
 The five phases below remain the implementation roadmap. The catalog integration is implemented; live audio reliability, library storage, and deployment verification remain open. Search supports a curated set of storefronts; JSON caches and coalescing are worker-local, and static worker budgets require ITUNES_WORKER_COUNT configuration across every worker.
 

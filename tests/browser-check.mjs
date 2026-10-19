@@ -6,10 +6,7 @@ const cdp = process.env.TEST_CDP || "http://127.0.0.1:9224";
 const pages = await (await fetch(`${cdp}/json`)).json();
 const page =
   pages.find((p) => p.type === "page" && p.url === "about:blank") ||
-  pages.find(
-    (p) =>
-      p.type === "page" && /^http:\/\/(localhost|127\.0\.0\.1):3000/.test(p.url)
-  );
+  pages.find((p) => p.type === "page" && p.url.startsWith(`${origin}/`));
 assert.ok(page, "Open a blank Chromium tab with remote debugging enabled");
 const socket = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve) =>
@@ -97,7 +94,7 @@ try {
     await evaluate("document.activeElement.tagName !== 'BODY'"),
     true
   );
-  await submit("daft punk get lucky");
+  await submit(process.env.TEST_QUERY || "rick astley never gonna give you up");
   await until(
     "!!document.querySelector('article') || document.body.innerText.includes('Unable to search')"
   );
@@ -111,7 +108,8 @@ try {
     "window.savedAudio = document.querySelector('audio'); Array.from(document.querySelectorAll('article button')).find(b => b.textContent === 'Play').click()"
   );
   await until(
-    "document.querySelector('audio').currentTime > 0 || !!document.querySelector('footer').textContent.match(/could not|unavailable/)"
+    "document.querySelector('audio').currentTime > 0 || !!document.querySelector('article [role=status]')?.textContent.match(/no confident|unable|unavailable|could not|too long|busy|retry/i) || !!document.querySelector('footer').textContent.match(/could not|unavailable/)",
+    70_000
   );
   const audio = await evaluate(
     "({ time: savedAudio.currentTime, duration: savedAudio.duration, error: savedAudio.error?.code, status: document.querySelector('footer [role=status]').textContent, seekable: savedAudio.seekable.length })"

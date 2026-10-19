@@ -111,6 +111,25 @@ keyboard range controls, navigation persistence, mobile overflow, stale
 responses, and empty/error states. It needs network access and does not run
 as part of the unit tests.
 
+The live smoke test defaults to `rick astley never gonna give you up`; set
+`TEST_QUERY` to exercise another catalog selection. Source matching may return
+a recoverable no-match result for some selections.
+
+After the live smoke test passes, run
+`node tests/browser-live-playback-check.mjs` against the same Edge tab and
+`TEST_ORIGIN`. Allow about four minutes and use a track longer than 140 seconds.
+This checks sustained playback beyond 120 seconds, a seek with 32 KiB/s bandwidth
+and 250 ms latency, recovery after an offline reload with position restoration,
+the track's natural end, and client cancellation of a live stream request. It
+restores network conditions and pauses playback on exit. This does not prove
+cleanup of the server's upstream connection or that an individual proxy response
+can transfer for longer than 120 seconds. Edge mobile viewport checks do not
+replace testing on physical mobile devices or other browser engines.
+
+For real Edge media recovery with deterministic HTTP 502/partial WAV responses,
+run `node tests/browser-retry-check.mjs`. Set `TEST_ORIGIN` explicitly when using
+a port other than that script's default of 3001.
+
 For queue interactions without YouTube access, run
 `node tests/browser-queue-check.mjs` with the same server and Chromium setup.
 It stubs search and audio to check queue selection (including duplicate video

@@ -88,7 +88,9 @@ export function MusicPlayer() {
           <QueuePanel />
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>{formatTime(p.time)}</span>
+          <span className="w-12 shrink-0 text-right tabular-nums">
+            {formatTime(p.time)}
+          </span>
           <input
             aria-label="Seek"
             type="range"
@@ -100,7 +102,9 @@ export function MusicPlayer() {
             onChange={(e) => p.seek(Number(e.target.value))}
             className="min-w-0 flex-1 accent-current"
           />
-          <span>{formatTime(p.duration || null)}</span>
+          <span className="w-12 shrink-0 tabular-nums">
+            {formatTime(p.duration || null)}
+          </span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <p role="status" className="min-w-0 text-xs text-muted-foreground">
