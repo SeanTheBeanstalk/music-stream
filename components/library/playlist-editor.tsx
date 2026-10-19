@@ -1,18 +1,23 @@
 "use client";
 import { useState } from "react";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-  PopoverClose,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 import type { Playlist } from "@/lib/music/library";
 import { useLibrary } from "./library-provider";
+import { PlaylistImageField } from "./playlist-image-field";
 
 export function PlaylistEditor({
   playlist,
@@ -26,6 +31,12 @@ export function PlaylistEditor({
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [confirm, setConfirm] = useState(false);
+  // Description stays local until playlist metadata persistence is extended.
+  const [description, setDescription] = useState("");
+  const [draftName, setDraftName] = useState(playlist?.name ?? "");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [image, setImage] = useState<File | null>(null);
+  const [draftImage, setDraftImage] = useState<File | null>(null);
   async function remove() {
     if (!playlist) return;
     try {
@@ -42,15 +53,20 @@ export function PlaylistEditor({
     }
   }
   return (
-    <Popover
+    <Dialog
       open={open}
       onOpenChange={(value) => {
+        if (value) {
+          setDraftName(playlist?.name ?? "");
+          setDraftDescription(description);
+          setDraftImage(image);
+        }
         setOpen(value);
         setConfirm(false);
         setMessage("");
       }}
     >
-      <PopoverTrigger
+      <DialogTrigger
         render={
           <Button
             variant={tile ? "outline" : playlist ? "ghost" : "default"}
@@ -59,7 +75,8 @@ export function PlaylistEditor({
             className={cn(
               tile &&
                 "w-full rounded-lg border-dashed text-sm font-medium tracking-normal whitespace-normal text-muted-foreground normal-case hover:text-foreground",
-              tile && layout === "grid" &&
+              tile &&
+                layout === "grid" &&
                 "aspect-square h-auto flex-col gap-4 self-start p-6",
               tile && layout === "list" && "h-auto min-h-26 gap-4 p-3"
             )}
@@ -67,7 +84,7 @@ export function PlaylistEditor({
         }
       >
         {playlist ? (
-          <MoreHorizontal aria-hidden="true" />
+          <Pencil aria-hidden="true" />
         ) : (
           <>
             <Plus
@@ -77,11 +94,18 @@ export function PlaylistEditor({
             Create playlist
           </>
         )}
-      </PopoverTrigger>
-      <PopoverContent>
-        <PopoverTitle className="mb-4 font-semibold">
-          {playlist ? "Edit playlist" : "Create playlist"}
-        </PopoverTitle>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+        <DialogHeader className="pr-10">
+          <DialogTitle>
+            {playlist ? "Edit playlist" : "Create playlist"}
+          </DialogTitle>
+          <DialogDescription>
+            {confirm
+              ? "Confirm playlist deletion."
+              : "Give your playlist a name, description, and album image."}
+          </DialogDescription>
+        </DialogHeader>
         {confirm ? (
           <div className="space-y-4">
             <p>
@@ -105,7 +129,8 @@ export function PlaylistEditor({
               className="space-y-3"
               onSubmit={async (e) => {
                 e.preventDefault();
-                const name = String(new FormData(e.currentTarget).get("name"));
+                const fields = new FormData(e.currentTarget);
+                const name = String(fields.get("name"));
                 try {
                   await mutate(
                     playlist
@@ -117,6 +142,10 @@ export function PlaylistEditor({
                         }
                       : { action: "create", name }
                   );
+                  setDescription(
+                    playlist ? String(fields.get("description") ?? "") : ""
+                  );
+                  setImage(playlist ? draftImage : null);
                   setOpen(false);
                 } catch (error) {
                   setMessage(
@@ -128,23 +157,40 @@ export function PlaylistEditor({
               }}
             >
               <label className="block space-y-2">
-                Playlist name
+                <span>Name</span>
                 <Input
                   name="name"
                   required
                   maxLength={100}
-                  defaultValue={playlist?.name ?? ""}
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
                   autoFocus
                 />
               </label>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={busy}>
-                  {playlist ? "Rename" : "Create"}
-                </Button>
-                <PopoverClose render={<Button variant="ghost" />}>
+              <label className="block space-y-2">
+                <span>Description</span>
+                <Textarea
+                  name="description"
+                  value={draftDescription}
+                  onChange={(event) => setDraftDescription(event.target.value)}
+                  placeholder="Add a description"
+                  rows={3}
+                  className="max-h-48 overflow-y-auto"
+                />
+              </label>
+              <PlaylistImageField
+                file={draftImage}
+                artwork={playlist?.items[0]?.track.artwork}
+                onChange={setDraftImage}
+              />
+              <DialogFooter>
+                <DialogClose render={<Button variant="ghost" />}>
                   Cancel
-                </PopoverClose>
-              </div>
+                </DialogClose>
+                <Button type="submit" disabled={busy}>
+                  {playlist ? "Save changes" : "Create"}
+                </Button>
+              </DialogFooter>
             </form>
             {playlist && (
               <Button
@@ -161,7 +207,7 @@ export function PlaylistEditor({
         <p role="status" className="mt-2 text-sm text-destructive">
           {message}
         </p>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }

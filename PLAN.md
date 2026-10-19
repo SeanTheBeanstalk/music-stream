@@ -486,6 +486,8 @@ Composite PK: `(user_id, catalog_track_id)`. Index `(user_id, created_at)` for l
 
 Index `user_id` for owner listings. Playlist names need not be unique. Every item/name edit checks and increments the playlist revision within the same transaction.
 
+Future playlist metadata persistence: the editor includes description and a custom album image picker as local UI state only. Add a migration for description and an optional cover-image storage key, extend the owned library API/repository with revision checks, and implement validated image uploads and replacement/deletion cleanup. Custom images should then appear in playlist headers and library cards and survive reloads. Playlist names already persist; no schema or API changes are part of this UI update.
+
 **`playlist_items`** — independently identified, ordered playlist entries.
 
 | Column | Postgres type | Purpose / constraint |

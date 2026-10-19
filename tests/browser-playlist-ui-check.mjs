@@ -41,6 +41,7 @@ await new Promise((resolve) =>
   socket.addEventListener("open", resolve, { once: true })
 );
 const pending = new Map();
+const fieldWarnings = [];
 let sequence = 0;
 function send(method, params = {}) {
   return new Promise((resolve, reject) => {
@@ -62,6 +63,10 @@ socket.onmessage = (event) => {
     pending.delete(data.id);
     if (data.error) job.reject(new Error(JSON.stringify(data.error)));
     else job.resolve(data.result);
+  } else if (data.method === "Runtime.consoleAPICalled") {
+    const message = data.params.args.map((arg) => arg.value ?? "").join(" ");
+    if (/uncontrolled|controlled FieldControl/.test(message))
+      fieldWarnings.push(message);
   } else if (data.method === "Fetch.requestPaused") {
     const { request, requestId } = data.params;
     const url = new URL(request.url);
@@ -69,6 +74,7 @@ socket.onmessage = (event) => {
     let status = 200;
     if (url.pathname === "/api/library" && request.method === "POST") {
       const command = JSON.parse(request.postData);
+      if (command.action === "rename") playlist.name = command.name;
       if (command.action === "reorder")
         playlist.items.sort(
           (a, b) =>
@@ -123,6 +129,22 @@ async function until(expression) {
 }
 const click = (selector) =>
   evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+async function fill(selector, text) {
+  await evaluate(
+    `document.querySelector(${JSON.stringify(selector)}).focus(); document.querySelector(${JSON.stringify(selector)}).select()`
+  );
+  await send("Input.insertText", { text });
+}
+async function selectImage(name, type = "image/png") {
+  await evaluate(`(() => {
+    const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='), c => c.charCodeAt(0));
+    const files = new DataTransfer();
+    files.items.add(new File([bytes], ${JSON.stringify(name)}, { type: ${JSON.stringify(type)} }));
+    const input = document.querySelector('input[type=file]');
+    input.files = files.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+}
 async function key(key, code = key) {
   await send("Input.dispatchKeyEvent", {
     type: "keyDown",
@@ -158,6 +180,74 @@ try {
   await until(
     "document.querySelectorAll('ol[aria-label=\"Playlist songs\"] > li').length === 3"
   );
+  // The playlist editor is a modal with labeled fields and keyboard focus return.
+  await evaluate(
+    "document.querySelector('main header button[aria-label=\"Edit Evening favorites\"]').focus()"
+  );
+  await key("Enter");
+  await until("!!document.querySelector('[data-slot=dialog-content]')");
+  assert.equal(await evaluate("document.activeElement.name"), "name");
+  assert.deepEqual(
+    await evaluate(
+      "Array.from(document.querySelectorAll('[data-slot=dialog-content] label')).map(el=>el.textContent.trim())"
+    ),
+    ["Name", "Description", "Change album image"]
+  );
+  assert.ok(
+    await evaluate(
+      "!!document.querySelector('button[aria-label=\"Edit Evening favorites\"] .lucide-pencil')"
+    )
+  );
+  await fill('input[name="name"]', "Evening favorites updated");
+  await fill('textarea[name="description"]', "A quiet evening");
+  await selectImage("invalid.txt", "text/plain");
+  await until(
+    "document.querySelector('[role=alert]')?.textContent.includes('Choose a JPG')"
+  );
+  await selectImage("album.png");
+  await until(
+    "document.querySelector('img[alt=\"Selected album image preview\"]')?.naturalWidth === 1"
+  );
+  await evaluate(
+    "document.querySelector('[data-slot=dialog-content] form').requestSubmit()"
+  );
+  await until("!document.querySelector('[data-slot=dialog-content]')");
+  await until(
+    "document.activeElement.getAttribute('aria-label') === 'Edit Evening favorites updated'"
+  );
+  await key("Enter");
+  await until("!!document.querySelector('[data-slot=dialog-content]')");
+  assert.equal(
+    await evaluate("document.querySelector('textarea').value"),
+    "A quiet evening"
+  );
+  assert.equal(
+    await evaluate("document.querySelector('input[name=name]').value"),
+    "Evening favorites updated"
+  );
+  await until(
+    "document.querySelector('img[alt=\"Selected album image preview\"]')?.naturalWidth === 1"
+  );
+  await fill('textarea[name="description"]', "Discard this draft");
+  await selectImage("discard.png");
+  await key("Escape");
+  await until("!document.querySelector('[data-slot=dialog-content]')");
+  await key("Enter");
+  await until("!!document.querySelector('[data-slot=dialog-content]')");
+  assert.equal(
+    await evaluate("document.querySelector('textarea').value"),
+    "A quiet evening"
+  );
+  assert.ok(
+    await evaluate(
+      "document.querySelector('[data-slot=dialog-content]').textContent.includes('album.png')"
+    )
+  );
+  await fill('input[name="name"]', "Evening favorites");
+  await evaluate(
+    "document.querySelector('[data-slot=dialog-content] form').requestSubmit()"
+  );
+  await until("!document.querySelector('[data-slot=dialog-content]')");
   // Activate the row dropdown with the keyboard and verify focus restoration.
   await evaluate(
     "document.querySelector('button[aria-label=\"Actions for GET IT, entry 1\"]').focus()"
@@ -258,6 +348,16 @@ try {
       await evaluate("document.documentElement.scrollWidth <= innerWidth"),
       `No horizontal overflow at ${width}px`
     );
+    await click('main header button[aria-label="Edit Evening favorites"]');
+    await until("!!document.querySelector('[data-slot=dialog-content]')");
+    assert.ok(
+      await evaluate(
+        "(() => { const r = document.querySelector('[data-slot=dialog-content]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; })()"
+      ),
+      `Dialog fits at ${width}px`
+    );
+    await key("Escape");
+    await until("!document.querySelector('[data-slot=dialog-content]')");
     if (width === 375 || width === 1440) {
       const shot = await send("Page.captureScreenshot", { format: "png" });
       await writeFile(
@@ -278,6 +378,11 @@ try {
     await evaluate(
       "Array.from(document.querySelectorAll('main header button')).every(b=>b.textContent.trim()==='Play'||b.textContent.trim()==='Shuffle'?b.disabled:true)"
     )
+  );
+  assert.deepEqual(
+    fieldWarnings,
+    [],
+    "No uncontrolled field warnings after renaming"
   );
   console.log(
     "PASS: Edge fixture playlist UI; Play/Shuffle, duplicate queue entries, recoverable failure, keyboard dropdown/focus, reorder/remove, empty state, and 320/375/768/1440px layouts."
