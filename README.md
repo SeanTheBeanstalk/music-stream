@@ -90,6 +90,10 @@ format.
 
 ## Checks
 
+PostgreSQL creation scripts, the versioned schema migration from `PLAN.md`,
+and database constraint checks are documented in [database/README.md](database/README.md).
+The application does not yet connect to these tables.
+
 ```sh
 pnpm test
 pnpm lint
