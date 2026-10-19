@@ -40,12 +40,15 @@ export function MusicPlayer() {
     <footer
       ref={playerRef}
       aria-label="Music player"
-      className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-5 py-4 backdrop-blur-md sm:px-8"
+      className="@container/player fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-5 py-4 backdrop-blur-md transition-[left] duration-200 ease-linear sm:px-8 md:left-[var(--app-sidebar-width)]"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-3">
         <div className="flex items-center gap-4">
           {p.track && (
-            <TrackCover src={details?.artwork} className="hidden sm:flex" />
+            <TrackCover
+              src={details?.artwork}
+              className="hidden @min-[36rem]/player:flex"
+            />
           )}
           <div className="min-w-0 flex-1">
             <p
@@ -92,7 +95,7 @@ export function MusicPlayer() {
               <SkipForward />
             </Button>
           </div>
-          <label className="hidden items-center gap-2 sm:flex">
+          <label className="hidden items-center gap-2 @min-[36rem]/player:flex">
             <Volume2 aria-hidden="true" className="size-4" />
             <span className="sr-only">Volume</span>
             <input

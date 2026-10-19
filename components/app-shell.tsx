@@ -1,58 +1,46 @@
 "use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Home, Library, Music2, Search } from "lucide-react";
-import { SidebarAccount } from "@/components/library/sidebar-account";
-import { cn } from "@/lib/utils";
+import { useState, type CSSProperties } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { MusicPlayer } from "@/components/ui/music-player";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   return (
-    <div className="min-h-svh pb-[var(--music-player-height,16rem)]">
+    <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
+      className="flex-col md:flex-row"
+      style={
+        {
+          "--sidebar-width": "14rem",
+          "--app-sidebar-width": sidebarOpen ? "14rem" : "0rem",
+        } as CSSProperties
+      }
+    >
       <a
         href="#main"
         className="sr-only z-50 bg-background p-4 focus:not-sr-only focus:fixed"
       >
         Skip to content
       </a>
-      <aside className="flex flex-col border-b bg-sidebar md:fixed md:top-0 md:bottom-[var(--music-player-height,10rem)] md:left-0 md:w-56 md:overflow-y-auto md:border-r">
-        <div className="flex items-center gap-3 p-6 text-lg font-semibold">
-          <Music2 aria-hidden="true" />
-          Streamify
-        </div>
-        <nav
-          aria-label="Main navigation"
-          className="flex gap-2 px-4 pb-4 md:flex-col"
+      <AppSidebar />
+      <div className="min-w-0 flex-1 pb-[var(--music-player-height,16rem)]">
+        <header className="hidden items-center border-b px-5 py-3 md:flex">
+          <SidebarTrigger
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-expanded={sidebarOpen}
+            aria-controls="desktop-sidebar"
+          />
+        </header>
+        <main
+          id="main"
+          tabIndex={-1}
+          className="px-5 py-10 outline-none sm:px-10 sm:py-16"
         >
-          {[
-            { href: "/", label: "Home", icon: Home },
-            { href: "/search", label: "Search", icon: Search },
-            { href: "/library", label: "Library", icon: Library },
-          ].map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={pathname === href ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-2 px-3 py-3 text-sm transition-colors hover:bg-muted focus-visible:outline-2 sm:gap-3 sm:px-4",
-                pathname === href
-                  ? "bg-muted font-semibold"
-                  : "text-muted-foreground"
-              )}
-            >
-              <Icon aria-hidden="true" className="size-4" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <SidebarAccount />
-      </aside>
-      <main
-        id="main"
-        tabIndex={-1}
-        className="px-5 py-10 outline-none sm:px-10 sm:py-16 md:ml-56"
-      >
-        {children}
-      </main>
-    </div>
+          {children}
+        </main>
+        <MusicPlayer />
+      </div>
+    </SidebarProvider>
   );
 }

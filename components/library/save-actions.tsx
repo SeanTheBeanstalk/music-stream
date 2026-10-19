@@ -13,7 +13,7 @@ import type { CatalogTrack } from "@/lib/music/catalog";
 import { songKey } from "@/lib/music/library";
 import { useLibrary } from "./library-provider";
 
-export function SaveActions({ track }: { track: CatalogTrack }) {
+export function useSaveActions(track: CatalogTrack) {
   const { library, mutate, busy, loading } = useLibrary();
   const [message, setMessage] = useState("");
   const liked = library.likes.some(
@@ -52,6 +52,12 @@ export function SaveActions({ track }: { track: CatalogTrack }) {
       );
     }
   }
+  return { library, busy, loading, liked, save, message };
+}
+
+export function SaveActions({ track }: { track: CatalogTrack }) {
+  const { library, busy, loading, liked, save, message } =
+    useSaveActions(track);
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">

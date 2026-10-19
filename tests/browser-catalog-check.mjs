@@ -55,21 +55,33 @@ async function until(expression) {
     `Timed out: ${expression}; ${await evaluate("JSON.stringify({ active: document.activeElement.outerHTML.slice(0, 500), dialogs: document.querySelectorAll('[role=dialog]').length, footer: document.querySelector('footer')?.textContent, queue: document.querySelector('button[aria-label^=\"Open queue\"]')?.getAttribute('aria-label') })")}`
   );
 }
+async function openActions(label) {
+  if (!["Play", "Add to queue", "Like", "Add to playlist"].includes(label))
+    return;
+  await evaluate(
+    `document.querySelector('article [aria-label^="Actions for"]').focus()`
+  );
+  await key("Enter", 13);
+  await until("!!document.querySelector('[role=menu]')");
+  await until("document.activeElement.getAttribute('role') === 'menuitem'");
+}
 async function click(label) {
+  await openActions(label);
   await until(
-    `Array.from(document.querySelectorAll('button')).some(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)})`
+    `Array.from(document.querySelectorAll(${JSON.stringify(["Play", "Add to queue", "Like", "Add to playlist"].includes(label) ? "[role=menuitem]" : "button")})).some(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)})`
   );
   await evaluate(
     `(() => {
-      const button = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)});
+      const button = Array.from(document.querySelectorAll(${JSON.stringify(["Play", "Add to queue", "Like", "Add to playlist"].includes(label) ? "[role=menuitem]" : "button")})).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)});
       button.focus();
       button.click();
     })()`
   );
 }
 async function keyboardClick(label) {
+  await openActions(label);
   await evaluate(
-    `Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)}).focus()`
+    `Array.from(document.querySelectorAll(${JSON.stringify(["Play", "Add to queue", "Like", "Add to playlist"].includes(label) ? "[role=menuitem]" : "button")})).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)}).focus()`
   );
   await key("Enter", 13);
 }
@@ -176,6 +188,22 @@ try {
     )
   );
   await closeDetails();
+  await openActions("Play");
+  assert.deepEqual(
+    await evaluate(
+      "Array.from(document.querySelectorAll('[role=menuitem]')).map(el => el.textContent.trim())"
+    ),
+    ["Play", "Add to queue", "Like", "Add to playlist"]
+  );
+  await key("Escape", 27);
+  await until("!document.querySelector('[role=menu]')");
+  await until(
+    "document.activeElement.getAttribute('aria-label') === 'Actions for first'"
+  );
+  await keyboardClick("Like");
+  await until(
+    "document.querySelector('article').textContent.includes('Sign in from Library')"
+  );
   await evaluate("window.resolutionMode = 'fail'");
   await click("Add to queue");
   await until(
@@ -233,6 +261,24 @@ try {
       )
     );
     await closeDetails();
+    await openActions("Play");
+    assert.ok(
+      await evaluate(`(() => {
+      const r = document.querySelector('[role=menu]').getBoundingClientRect();
+      return r.left >= 0 && r.right <= innerWidth;
+    })()`)
+    );
+    await key("End", 35);
+    await key("ArrowRight", 39);
+    await until("document.querySelectorAll('[role=menu]').length === 2");
+    assert.ok(
+      await evaluate(`Array.from(document.querySelectorAll('[role=menu]')).every(el => {
+      const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth;
+    })`)
+    );
+    await key("Escape", 27);
+    await key("Escape", 27);
+    await until("!document.querySelector('[role=menu]')");
   }
   await openQueue(0);
   await until(

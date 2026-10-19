@@ -1,6 +1,5 @@
 import { Geist_Mono, Inter, Instrument_Sans } from "next/font/google";
 import { PlaybackProvider } from "@/components/playback/playback-provider";
-import { MusicPlayer } from "@/components/ui/music-player";
 import { AppShell } from "@/components/app-shell";
 import { LibraryProvider } from "@/components/library/library-provider";
 
@@ -42,7 +41,6 @@ export default function RootLayout({
           <PlaybackProvider>
             <LibraryProvider>
               <AppShell>{children}</AppShell>
-              <MusicPlayer />
             </LibraryProvider>
           </PlaybackProvider>
         </ThemeProvider>

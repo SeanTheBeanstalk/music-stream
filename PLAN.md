@@ -103,7 +103,7 @@ cache fills, long tracks, or authenticated libraries.
 - [x] Normalize tracks with a validated video ID, canonical watch URL, title, artwork, and optional uploader and duration.
 - [x] Inspect the selected upload title, uploader, and YouTube link after catalog source resolution.
 - [x] Search and queue cards show title, artist, and album, with catalog duration, genre, release date, explicitness, storefront, and available store/source links in keyboard-accessible details popups.
-- [x] Play and Add to queue actions with queue confirmation feedback.
+- [x] Search result actions in a Shadcn three-dot dropdown with text menu items for Play, Add to queue, Like/Unlike, and an Add to playlist submenu; preserve action feedback after closing the menu.
 - [x] Initial, loading, no-result, success, and recoverable search-error states.
 - [x] Cancel superseded searches and requests on unmount; prevent stale results from replacing the latest search.
 - [x] Current `/api/metadata/{videoId}` retrieves normalized YouTube metadata for a validated video ID; retain it for playback-source inspection.

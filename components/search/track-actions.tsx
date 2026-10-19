@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { usePlayback } from "@/components/playback/playback-provider";
 import type { Track } from "@/lib/music/track";
 import type { CatalogTrack } from "@/lib/music/catalog";
-export function TrackActions({
+export function useTrackActions({
   track,
   pendingActionRef,
   onResolved,
@@ -63,6 +63,11 @@ export function TrackActions({
       }
     }
   }
+  return { resolve, busy, message };
+}
+
+export function TrackActions(props: Parameters<typeof useTrackActions>[0]) {
+  const { resolve, busy, message } = useTrackActions(props);
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">

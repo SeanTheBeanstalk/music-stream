@@ -18,11 +18,13 @@ export function TrackMetadata({
   source,
   audioDuration,
   label,
+  triggerClassName,
 }: {
   catalog?: CatalogTrack;
   source?: Track;
   audioDuration?: number;
   label?: string;
+  triggerClassName?: string;
 }) {
   const title = catalog?.title ?? source?.title ?? "Track";
   const rows = [
@@ -69,6 +71,7 @@ export function TrackMetadata({
           <Button
             variant="ghost"
             size="icon"
+            className={triggerClassName}
             aria-label={label ?? `Track details for ${title}`}
           />
         }

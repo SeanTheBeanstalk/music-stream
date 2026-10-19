@@ -1,11 +1,10 @@
 "use client";
 import { TrackCover } from "@/components/music/track-cover";
 import { useState, type RefObject } from "react";
-import { TrackActions } from "./track-actions";
+import { SearchActions } from "./search-actions";
 import type { Track } from "@/lib/music/track";
 import { TrackMetadata } from "@/components/music/track-metadata";
 import type { CatalogTrack } from "@/lib/music/catalog";
-import { SaveActions } from "@/components/library/save-actions";
 export function SearchResult({
   track,
   pendingActionRef,
@@ -15,25 +14,30 @@ export function SearchResult({
 }) {
   const [source, setSource] = useState<Track | undefined>();
   return (
-    <article className="grid gap-5 border bg-card p-5 sm:grid-cols-[100px_1fr] sm:p-6">
+    <article className="relative grid gap-5 border bg-card p-5 pr-14 sm:grid-cols-[100px_1fr] sm:p-6 sm:pr-14">
       <TrackCover src={track.artwork} className="size-24" />
-      <div className="min-w-0 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 text-xl font-semibold wrap-break-word">
-            {track.title}
-          </h2>
-          <TrackMetadata catalog={track} source={source} />
+      <div className="min-w-0">
+        <div className="space-y-1">
+          <div className="flex items-start gap-1">
+            <h2 className="min-w-0 text-xl leading-7 font-semibold wrap-break-word">
+              {track.title}
+            </h2>
+            <TrackMetadata
+              catalog={track}
+              source={source}
+              triggerClassName="size-7"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {track.artist.name ?? "Artist unknown"} &middot;{" "}
+            {track.album.name ?? "Album unknown"}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {track.artist.name ?? "Artist unknown"} &middot;{" "}
-          {track.album.name ?? "Album unknown"}
-        </p>
-        <TrackActions
+        <SearchActions
           track={track}
           pendingActionRef={pendingActionRef}
           onResolved={setSource}
         />
-        <SaveActions track={track} />
       </div>
     </article>
   );
