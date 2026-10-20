@@ -6,11 +6,8 @@ import {
   r2PlaybackEnabled,
 } from "@/lib/server/cached-playback";
 import { getMusicRepository } from "@/lib/server/persistent-music";
-import {
-  runYoutube,
-  YoutubeError,
-  youtubeErrorResponse,
-} from "@/lib/server/youtube";
+import { resolveYoutubeAudio } from "@/lib/server/youtube-audio";
+import { YoutubeError, youtubeErrorResponse } from "@/lib/server/youtube";
 export const runtime = "nodejs";
 export async function GET(
   request: Request,
@@ -32,25 +29,11 @@ export async function GET(
       if (cached) return cached;
     }
     // Proxy byte ranges from the audio resource to support browser seeking.
-    const output = await runYoutube(
-      [
-        "--get-url",
-        "-f",
-        // Use yt-dlp's quality ranking across containers instead of forcing M4A.
-        "bestaudio",
-        "--",
-        `https://www.youtube.com/watch?v=${videoId}`,
-      ],
-      request.signal
-    );
-    const url = new URL(output.trim());
-    if (url.protocol !== "https:" || !url.hostname.endsWith(".googlevideo.com"))
-      throw new YoutubeError("Invalid audio resource.");
+    const { url, headers } = await resolveYoutubeAudio(videoId, request.signal);
     const signal = AbortSignal.any([
       request.signal,
       AbortSignal.timeout(120_000),
     ]);
-    const headers = new Headers();
     if (range) {
       headers.set("Range", range);
     }

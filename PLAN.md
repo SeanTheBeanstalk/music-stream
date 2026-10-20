@@ -131,6 +131,7 @@ cache fills, long tracks, or authenticated libraries.
 
 ### Streaming and Server Safeguards
 
+- [x] Honor yt-dlp's selected audio `available_at` timestamp before live proxy requests, with a cancellable wait capped at 30 seconds and supplied playback headers. On 2026-10-20, direct live resolver checks and an isolated production server on port 3002 returned 206 and 1,024 audio bytes for both Taylor Swift's `mRFDNwDrW5w` and keshi's `6DcUnqZqTvI`. Headless Edge passed playback and forward/backward seeking with durations of 178.361 and 150.141 seconds respectively using `tests/browser-youtube-availability-check.mjs`. Timing, cancellation, and invalid metadata tests passed. The existing production server on port 3000 was left untouched during isolated validation.
 - [x] `/api/stream/{videoId}` resolves and proxies the best available audio using yt-dlp's quality ranking across formats, without transcoding.
 - [x] Forward valid byte-range requests and upstream range/content headers to support seeking.
 - [x] Validate video IDs before subprocess calls and restrict resolved audio URLs to HTTPS Google video hosts.

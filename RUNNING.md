@@ -37,6 +37,37 @@ use the stored audio. Adding a song to the queue alone does not download it.
 If the worker is stopped, new jobs wait in PostgreSQL until it starts again;
 ordinary source playback can still work.
 
+## Isolated production playback checks
+
+To test a new production build alongside the existing server without replacing
+its `.next` output, use a separate output directory and port. In PowerShell:
+
+```powershell
+$env:NEXT_DIST_DIR = 'build/port3002'
+pnpm build
+$env:AUDIO_CACHE_ENABLED = 'false'
+$env:R2_PLAYBACK_ENABLED = 'false'
+pnpm start --port 3002 --hostname 127.0.0.1
+```
+
+Open <http://127.0.0.1:3002>. Both build and start must use the same
+`NEXT_DIST_DIR`. These cache switches affect only this process and force live
+YouTube streaming without enqueueing cache fills. Database configuration is
+still shared with `.env.local`. Use a separate terminal for the regular server.
+
+For the live audio regression check, launch a dedicated headless Edge with a
+blank tab and remote debugging, then run in another terminal:
+
+```powershell
+$env:TEST_ORIGIN = 'http://127.0.0.1:3002'
+$env:TEST_CDP = 'http://127.0.0.1:9226'
+node tests/browser-youtube-availability-check.mjs
+```
+
+This checks real ranged audio responses, browser playback, duration, and forward
+and backward seeking for the Taylor Swift and keshi recordings. It requires
+live provider access and does not test the app's queue controls or R2 cache.
+
 ## First-time setup
 
 ### 1. Install the required tools
