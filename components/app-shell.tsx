@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       style={
         {
           "--sidebar-width": "14rem",
-          "--app-sidebar-width": sidebarOpen ? "14rem" : "0rem",
+          "--app-sidebar-width": sidebarOpen ? "14rem" : "3rem",
         } as CSSProperties
       }
     >
