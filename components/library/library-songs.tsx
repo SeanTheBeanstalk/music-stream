@@ -112,7 +112,6 @@ export function LibrarySongs({
               track={track}
               pendingActionRef={pending}
               onResolved={() => {}}
-              queueToast={Boolean(playlist)}
               label={`Actions for ${track.title}, entry ${index + 1}`}
               triggerClassName="text-[#fa2448] dark:text-rose-400"
               className="contents"

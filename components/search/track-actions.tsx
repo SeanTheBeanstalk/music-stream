@@ -10,12 +10,10 @@ export function useTrackActions({
   track,
   pendingActionRef,
   onResolved,
-  queueToast = false,
 }: {
   track: CatalogTrack;
   pendingActionRef: RefObject<AbortController | null>;
   onResolved: (track: Track) => void;
-  queueToast?: boolean;
 }) {
   const { play, enqueue } = usePlayback();
   const own = useRef<AbortController | null>(null);
@@ -49,13 +47,11 @@ export function useTrackActions({
       onResolved(selected!);
       if (action === "play") play(selected!);
       else enqueue(selected!);
-      if (action === "enqueue" && queueToast) {
+      if (action === "enqueue") {
         toast("Added to queue");
         setMessage("");
       } else {
-        setMessage(
-          action === "play" ? "Selected for playback" : "Added to queue"
-        );
+        setMessage("Selected for playback");
       }
     } catch (error) {
       if (!controller.signal.aborted)
