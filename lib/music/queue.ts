@@ -20,10 +20,11 @@ export function queueReducer(
   switch (action.type) {
     case "play-many": {
       if (!action.tracks.length) return state;
-      const index = state.index + 1;
-      const tracks = [...state.tracks];
-      tracks.splice(index, 0, ...action.tracks);
-      return { tracks, index, revision: state.revision + 1 };
+      return {
+        tracks: [...action.tracks],
+        index: 0,
+        revision: state.revision + 1,
+      };
     }
     case "ended":
       // An ending event must never start an idle or empty queue.

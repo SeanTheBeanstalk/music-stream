@@ -15,7 +15,7 @@ const first = normalizeTrack({
   duration: 123,
 });
 const second = normalizeTrack({ id: "dQw4w9WgXcQ", title: "Second" });
-test("playlist playback inserts ordered duplicate entries before existing upcoming music", () => {
+test("playlist playback replaces the queue and preserves ordered duplicate entries", () => {
   const state = queueReducer(
     queueReducer(emptyQueue, { type: "play", track: first }),
     { type: "enqueue", track: second }
@@ -24,8 +24,8 @@ test("playlist playback inserts ordered duplicate entries before existing upcomi
     type: "play-many",
     tracks: [second, first, second],
   });
-  assert.deepEqual(result.tracks, [first, second, first, second, second]);
-  assert.equal(result.index, 1);
+  assert.deepEqual(result.tracks, [second, first, second]);
+  assert.equal(result.index, 0);
   assert.equal(result.revision, state.revision + 1);
   assert.deepEqual(state.tracks, [first, second]);
   assert.equal(queueReducer(result, { type: "play-many", tracks: [] }), result);
@@ -35,6 +35,30 @@ test("playlist playback inserts ordered duplicate entries before existing upcomi
   });
   assert.equal(fresh.index, 0);
   assert.deepEqual(fresh.tracks, [second, first]);
+});
+test("replaying a playlist resets history and restarts even when the first track is unchanged", () => {
+  const tracks = [first, second, first];
+  const started = queueReducer(emptyQueue, { type: "play-many", tracks });
+  const replayed = queueReducer(started, { type: "play-many", tracks });
+  assert.equal(replayed.index, 0);
+  assert.equal(replayed.revision, started.revision + 1);
+  assert.deepEqual(replayed.tracks, tracks);
+  assert.notEqual(replayed.tracks, tracks);
+
+  const advanced = queueReducer(replayed, { type: "next" });
+  const replaced = queueReducer(advanced, {
+    type: "play-many",
+    tracks: [second, first],
+  });
+  assert.equal(replaced.index, 0);
+  assert.equal(replaced.revision, advanced.revision + 1);
+  assert.equal(queueReducer(replaced, { type: "previous" }), replaced);
+  const ended = queueReducer(replaced, { type: "next" });
+  assert.equal(queueReducer(ended, { type: "next" }), ended);
+  assert.deepEqual(
+    queueReducer(ended, { type: "ended", repeatMode: "queue" }).tracks,
+    [second, first]
+  );
 });
 test("normalizes the first result and preserves its canonical identity", () => {
   assert.deepEqual(normalizeTrack({ entries: [first, second] }), first);

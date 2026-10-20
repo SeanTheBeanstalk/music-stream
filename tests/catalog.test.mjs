@@ -318,6 +318,52 @@ test("catalog search limits upstream requests and returned results to the top fi
     [1, 2, 3, 4, 5]
   );
 });
+test("search groups identical song names and artists across catalog IDs, keeping the first listing", async () => {
+  const first = { ...row, trackName: "UNDERSTAND", artistName: "keshi" };
+  const client = createCatalogClient(async () =>
+    Response.json({
+      results: [
+        first,
+        { ...first, trackId: 124, collectionName: "Another release" },
+        {
+          ...first,
+          trackId: 125,
+          trackName: " understand ",
+          artistName: "Keshi",
+        },
+        { ...first, trackId: 126, artistName: "Another Artist" },
+        { ...first, trackId: 127, trackName: "UNDERSTAND (Live)" },
+      ],
+    })
+  );
+  const tracks = await client.search(
+    "keshi understand",
+    "US",
+    new AbortController().signal
+  );
+  assert.deepEqual(
+    tracks.map((track) => track.trackId),
+    [123, 126, 127]
+  );
+  assert.equal(tracks[0].album.name, "Album");
+});
+
+test("search preserves same-title listings with unknown artists and removes repeated IDs", async () => {
+  const unknown = { ...row, artistName: null };
+  const client = createCatalogClient(async () =>
+    Response.json({ results: [unknown, unknown, { ...unknown, trackId: 124 }] })
+  );
+  const tracks = await client.search(
+    "song",
+    "US",
+    new AbortController().signal
+  );
+  assert.deepEqual(
+    tracks.map((track) => track.trackId),
+    [123, 124]
+  );
+});
+
 test("player metadata comes from iTunes while playback source and duration remain independent", () => {
   const source = candidate("YouTube upload title", "YouTube uploader", 245);
   const resolved = {

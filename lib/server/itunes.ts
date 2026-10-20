@@ -87,9 +87,24 @@ export function createCatalogClient(
               (track: CatalogTrack | null): track is CatalogTrack =>
                 track !== null
             );
-          return [
-            ...new Map(tracks.map((track) => [track.id, track])).values(),
-          ];
+          const seenIds = new Set<string>();
+          const seenSongs = new Set<string>();
+          return tracks.filter((track) => {
+            const songKey = track.artist.name
+              ? JSON.stringify([
+                  track.title.toLowerCase(),
+                  track.artist.name.toLowerCase(),
+                ])
+              : null;
+            if (
+              seenIds.has(track.id) ||
+              (path === "/search" && songKey && seenSongs.has(songKey))
+            )
+              return false;
+            seenIds.add(track.id);
+            if (songKey) seenSongs.add(songKey);
+            return true;
+          });
         } catch (error) {
           if (sharedSignal.aborted) throw error;
           if (error instanceof CatalogError) throw error;

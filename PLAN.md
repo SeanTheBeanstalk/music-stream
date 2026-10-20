@@ -97,7 +97,7 @@ cache fills, long tracks, or authenticated libraries.
 ### Existing Search Foundation
 
 - [x] Submit a song, artist, or album query with Enter or the Search button; no search subprocess on each keystroke.
-- [x] Request and display at most five iTunes song results, preserving upstream order.
+- [x] Request at most five iTunes song results and group identical song names and artists (ignoring case and surrounding whitespace), keeping the first listing in upstream order. Results may contain fewer than five songs after grouping.
 - [x] Original YouTube search foundation retained in the on-demand resolver; `/api/search` now returns iTunes catalog results.
 - [x] Trim and validate queries, rejecting empty, oversized, and control-character input.
 - [x] Normalize tracks with a validated video ID, canonical watch URL, title, artwork, and optional uploader and duration.
@@ -119,6 +119,7 @@ cache fills, long tracks, or authenticated libraries.
 - [x] In-memory queue retaining selected video IDs and metadata without repeating text searches.
 - [x] Queue additions preserve the active track and upcoming order; the first track stays in Up next until Play makes it current.
 - [x] Playing a selection inserts it after the current track and preserves upcoming tracks; replaying the same video is supported.
+- [x] Playlist Play and Shuffle replace the entire playback queue after successful source resolution, start at the first selected track, and preserve duplicate playlist entries. Empty or failed selections leave the existing queue intact.
 - [x] Advance to the next queued track when playback ends; stop at the queue boundary when repeat is Off.
 - [x] Empty-player, empty-queue, end-of-queue, upcoming-track, and queued-count displays.
 - [x] Buffering and playback-failure messages with automatic retries (1s exponential backoff capped at 30s, no attempt limit), pause-to-cancel and skip controls; browser autoplay restrictions require Play.
