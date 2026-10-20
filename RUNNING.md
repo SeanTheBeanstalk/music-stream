@@ -107,7 +107,7 @@ For a new local database, with PostgreSQL running and `psql` on PATH:
 psql -X -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -f database/create-database.sql
 ```
 
-This creates `music_stream` and applies migrations 0001 and 0002. Match
+This creates `music_stream` and applies migrations 0001 through 0004. Match
 `DATABASE_URL` to your database credentials. Skip this command if the database
 already exists.
 
@@ -166,3 +166,5 @@ If playback works but uploads do not, check that `AUDIO_CACHE_ENABLED=true`, bot
 migrations are applied, and the worker is running. If the worker reports a missing
 tool, correct `YT_DLP_PATH` or `FFPROBE_PATH`. If it reports database or storage
 failures, check connectivity and the corresponding credentials in `.env.local`.
+
+For existing installations, apply `database/migrations/0004_playlist_metadata.sql` after 0003 for persistent playlist descriptions and covers. Schedule `pnpm covers:cleanup` regularly; see `database/README.md` for upload limits and cleanup behavior.

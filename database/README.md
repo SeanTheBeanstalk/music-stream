@@ -17,7 +17,7 @@ psql -X -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -f database/crea
 ```
 
 `psql` prompts for a password if required. The bootstrap creates `music_stream`,
-connects to it, and applies migrations 0001, 0002, and 0003. The `\connect`
+connects to it, and applies migrations 0001 through 0004. The `\connect`
 and `\ir` commands require psql. Database creation cannot be part of the schema
 transaction; if the migration fails, the empty database remains for a retry.
 
@@ -94,3 +94,30 @@ The test runs inside a transaction and rolls back all fixtures. It checks
 identity/selection uniqueness, finite durations, ready assets, active jobs and
 leases, duplicate playlist songs, deferred reordering, revision checks,
 restricted deletion, cascading ownership deletion, and saved-track preservation.
+
+## Playlist descriptions and covers
+
+Apply `database/migrations/0004_playlist_metadata.sql` after 0003, including
+on existing databases. It adds `description` (empty by default), optional
+`cover_image_key`, and durable `playlist_cover_cleanup` with triggers for cover
+replacement and playlist/user deletion. Existing playlists and entries are retained.
+
+```powershell
+psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0004_playlist_metadata.sql
+```
+
+Cover uploads require the existing private R2 credentials. Sharp validates and
+normalizes JPG/PNG/WebP files (5 MB, 16 million pixels maximum) to WebP, at most
+1024 pixels per side. Metadata-only editing works without R2 configuration.
+Schedule `pnpm covers:cleanup` regularly (each run handles up to 10 due objects).
+Library writes also retry cleanup. Failed deletions remain queued; unpublished
+uploads become eligible after one day. Cover objects are separate from the audio
+cache capacity budget. Do not apply the audio eviction lifecycle to covers.
+
+Browser integration regression (production app and dedicated headless Edge): set
+`TEST_DATABASE_URL` to an isolated database with all four migrations,
+`TEST_ORIGIN` to the app using that database, and `TEST_CDP` to Edge's debugging
+endpoint. Run `node --conditions=react-server --experimental-strip-types
+--env-file=.env.local tests/browser-playlist-metadata-check.mjs` on one line.
+The app and test process need R2 access. This creates then removes temporary
+accounts and covers; never point it at a production library database.

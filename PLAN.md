@@ -482,12 +482,26 @@ Composite PK: `(user_id, catalog_track_id)`. Index `(user_id, created_at)` for l
 | `id` | UUID, PK | Playlist identifier |
 | `user_id` | UUID, FK | References `users.id` |
 | `name` | TEXT | Nonempty after trimming |
+| `description` | TEXT | Up to 2,000 characters; defaults to empty |
+| `cover_image_key` | TEXT? | Private R2 object key for custom cover |
 | `revision` | INTEGER | Nonnegative concurrency version; default `0` |
 | `created_at`, `updated_at` | TIMESTAMPTZ | Playlist timestamps |
 
 Index `user_id` for owner listings. Playlist names need not be unique. Every item/name edit checks and increments the playlist revision within the same transaction.
 
-Future playlist metadata persistence: the editor includes description and a custom album image picker as local UI state only. Add a migration for description and an optional cover-image storage key, extend the owned library API/repository with revision checks, and implement validated image uploads and replacement/deletion cleanup. Custom images should then appear in playlist headers and library cards and survive reloads. Playlist names already persist; no schema or API changes are part of this UI update.
+Playlist metadata persistence: migration 0004 adds description and an optional cover-image storage key. The owned library API/repository saves metadata with revision checks. Validated, normalized JPG/PNG/WebP uploads use private R2 storage and authenticated cover delivery; descriptions and covers survive reloads and appear in playlist headers and library cards. Replacement/deletion (including cascading user deletion) queues durable cleanup. Failed or abandoned uploads expire after one day; run `pnpm covers:cleanup` regularly to retry cleanup independently of library writes.
+
+Playlist metadata validation on 2026-10-20: all **92 tests passed** with isolated
+PostgreSQL 18.6 (no skips); `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed.
+`tests/browser-playlist-metadata-check.mjs` passed in headless Edge against the
+production app, isolated PostgreSQL, and real private R2: upload/create, authenticated
+cover reads, reload persistence, edit cancellation, revision conflicts, cover
+replacement/removal/deletion cleanup, keyboard focus, and 320/375/768/1280px layouts.
+The fixture playlist UI regression also passed at 320/375/768/1440px. Temporary
+accounts and uploaded covers were removed. Migration 0004 has **not** been applied
+to the configured local app database: its Windows service is stopped and starting
+it was denied by OS permissions. Apply the migration after starting that service.
+
 
 **`playlist_items`** — independently identified, ordered playlist entries.
 

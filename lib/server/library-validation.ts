@@ -22,12 +22,25 @@ export function playlistName(v: unknown): string {
     throw new LibraryError("Use a playlist name between 1 and 100 characters.");
   return v.trim();
 }
+export function playlistDescription(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length > 2000 ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)
+  )
+    throw new LibraryError("Use a description up to 2,000 characters.");
+  return value.trim();
+}
 export function parseCommand(value: unknown): LibraryCommand {
   if (!value || typeof value !== "object")
     throw new LibraryError("Invalid library operation.");
   const v = value as Record<string, unknown>;
   if (v.action === "create")
-    return { action: "create", name: playlistName(v.name) };
+    return {
+      action: "create",
+      name: playlistName(v.name),
+      description: playlistDescription(v.description ?? ""),
+    };
   if (v.action === "like" || v.action === "add") {
     if (
       !catalogId(v.trackId) ||
@@ -54,6 +67,16 @@ export function parseCommand(value: unknown): LibraryCommand {
     throw new LibraryError("Invalid playlist identity or revision.");
   const base = { playlistId: v.playlistId, revision: v.revision as number };
   switch (v.action) {
+    case "update":
+      if (v.removeCover !== undefined && typeof v.removeCover !== "boolean")
+        throw new LibraryError("Invalid cover selection.");
+      return {
+        ...base,
+        action: "update",
+        name: playlistName(v.name),
+        description: playlistDescription(v.description),
+        removeCover: v.removeCover === true,
+      };
     case "rename":
       return { ...base, action: "rename", name: playlistName(v.name) };
     case "delete":

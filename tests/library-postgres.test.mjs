@@ -162,6 +162,92 @@ test(
         [playlist.id]
       );
       assert.deepEqual(positions.rows, [{ position: 0 }]);
+      const firstCover = `playlist-covers/${user.id}/00000000-0000-4000-8000-000000000001.webp`;
+      const secondCover = `playlist-covers/${user.id}/00000000-0000-4000-8000-000000000002.webp`;
+      await database.query(
+        "INSERT INTO public.playlist_cover_cleanup (object_key) VALUES ($1)",
+        [firstCover]
+      );
+      await library.mutate(
+        user.id,
+        edit("update", {
+          name: "With cover",
+          description: "Saved description",
+        }),
+        null,
+        firstCover
+      );
+      let metadata = (await library.read(user.id, username)).playlists[0];
+      assert.equal(metadata.description, "Saved description");
+      assert.ok(
+        metadata.coverUrl.startsWith(`/api/library/covers/${playlist.id}?v=`)
+      );
+      assert.equal(
+        (
+          await database.query(
+            "SELECT * FROM public.playlist_cover_cleanup WHERE object_key=$1",
+            [firstCover]
+          )
+        ).rowCount,
+        0
+      );
+      await assert.rejects(
+        library.mutate(
+          user.id,
+          edit("update", { name: "Stale", description: "Lost" }),
+          null,
+          secondCover
+        ),
+        (error) => error.status === 409
+      );
+      await assert.rejects(
+        library.mutate(other.id, {
+          ...edit("update", { name: "Foreign", description: "No" }),
+          revision: metadata.revision,
+        }),
+        (error) => error.status === 404
+      );
+      playlist = metadata;
+      await library.mutate(
+        user.id,
+        edit("update", { name: "Replacement", description: "Changed" }),
+        null,
+        secondCover
+      );
+      assert.equal(
+        (
+          await database.query(
+            "SELECT * FROM public.playlist_cover_cleanup WHERE object_key=$1",
+            [firstCover]
+          )
+        ).rowCount,
+        1
+      );
+      playlist = (await library.read(user.id, username)).playlists[0];
+      await library.mutate(
+        user.id,
+        edit("update", {
+          name: "Removed cover",
+          description: "Still saved",
+          removeCover: true,
+        })
+      );
+      playlist = (await library.read(user.id, username)).playlists[0];
+      assert.equal(playlist.coverUrl, null);
+      assert.equal(playlist.description, "Still saved");
+      assert.equal(
+        (
+          await database.query(
+            "SELECT * FROM public.playlist_cover_cleanup WHERE object_key=$1",
+            [secondCover]
+          )
+        ).rowCount,
+        1
+      );
+      await database.query(
+        "DELETE FROM public.playlist_cover_cleanup WHERE object_key=ANY($1::text[])",
+        [[firstCover, secondCover]]
+      );
       const reloaded = createLibraryRepository(database);
       assert.equal((await reloaded.read(user.id, username)).likes.length, 2);
       await library.mutate(user.id, edit("delete"));

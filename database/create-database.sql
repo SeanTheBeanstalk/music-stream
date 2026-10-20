@@ -9,3 +9,4 @@ CREATE DATABASE music_stream;
 \ir migrations/0001_initial_schema.sql
 \ir migrations/0002_cache_objects.sql
 \ir migrations/0003_library_accounts.sql
+\ir migrations/0004_playlist_metadata.sql

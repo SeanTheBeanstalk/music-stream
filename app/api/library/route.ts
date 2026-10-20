@@ -1,12 +1,12 @@
+import {
+  readPlaylistRequest,
+  stagePlaylistCover,
+  cleanupPlaylistCovers,
+} from "@/lib/server/playlist-covers";
 import { getDatabase } from "@/lib/server/database";
 import { createLibraryAccount } from "@/lib/server/library-account";
 import { createLibraryRepository } from "@/lib/server/library-repository";
-import {
-  LibraryError,
-  parseCommand,
-  sameOrigin,
-  readJson,
-} from "@/lib/server/library-validation";
+import { LibraryError, sameOrigin } from "@/lib/server/library-validation";
 import { libraryFailure, libraryResponse } from "@/lib/server/library-http";
 import { createMusicRepository } from "@/lib/server/music-repository";
 import { catalog } from "@/lib/server/itunes";
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const user = await createLibraryAccount(database).current(request);
     if (!user)
       throw new LibraryError("Sign in from Library to save music.", 401);
-    const command = parseCommand(await readJson(request));
+    const { command, image } = await readPlaylistRequest(request);
     let track = null;
     if (
       command.action === "add" ||
@@ -57,7 +57,28 @@ export async function POST(request: Request) {
         ));
     }
     const repository = createLibraryRepository(database);
-    await repository.mutate(user.id, command, track);
+    // Reject foreign/stale edits before uploading; mutate checks again under lock.
+    if (image && command.action === "update") {
+      const owned = await database.query(
+        "SELECT revision FROM public.playlists WHERE id=$1 AND user_id=$2",
+        [command.playlistId, user.id]
+      );
+      if (!owned.rows[0]) throw new LibraryError("Playlist not found.", 404);
+      if (owned.rows[0].revision !== command.revision)
+        throw new LibraryError(
+          "This playlist changed elsewhere. Review the refreshed playlist and try again.",
+          409
+        );
+    }
+    const coverKey = image
+      ? await stagePlaylistCover(database, user.id, image, request.signal)
+      : undefined;
+    // Pending upload cleanup remains delayed if publication fails, because a
+    // lost COMMIT response can still mean the transaction committed.
+    await repository.mutate(user.id, command, track, coverKey);
+    await cleanupPlaylistCovers(database).catch(() => {
+      console.warn("Playlist cover cleanup deferred.");
+    });
     return libraryResponse(await repository.read(user.id, user.name));
   } catch (error) {
     return libraryFailure(error);

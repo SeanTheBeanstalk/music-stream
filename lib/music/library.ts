@@ -11,6 +11,8 @@ export interface PlaylistItem {
 export interface Playlist {
   id: string;
   name: string;
+  description: string;
+  coverUrl: string | null;
   revision: number;
   updatedAt: string;
   items: PlaylistItem[];
@@ -22,7 +24,15 @@ export interface Library {
 }
 export type LibraryCommand =
   | { action: "like"; trackId: number; country: Storefront; liked: boolean }
-  | { action: "create"; name: string }
+  | { action: "create"; name: string; description?: string }
+  | {
+      action: "update";
+      playlistId: string;
+      revision: number;
+      name: string;
+      description: string;
+      removeCover?: boolean;
+    }
   | { action: "rename"; playlistId: string; revision: number; name: string }
   | { action: "delete"; playlistId: string; revision: number }
   | {

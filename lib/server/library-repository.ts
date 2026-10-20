@@ -14,7 +14,9 @@ export function createLibraryRepository(
       COALESCE((SELECT jsonb_agg(jsonb_build_object('track',c.metadata,'savedAt',l.created_at) ORDER BY l.created_at DESC)
         FROM public.likes l JOIN public.catalog_tracks c ON c.id=l.catalog_track_id WHERE l.user_id=$1),'[]') AS likes,
       COALESCE((SELECT jsonb_agg(p ORDER BY p."updatedAt" DESC) FROM (
-        SELECT p.id,p.name,p.revision,p.updated_at AS "updatedAt",
+        SELECT p.id,p.name,p.description,
+          CASE WHEN p.cover_image_key IS NOT NULL THEN '/api/library/covers/' || p.id || '?v=' || p.revision ELSE NULL END AS "coverUrl",
+          p.revision,p.updated_at AS "updatedAt",
           COALESCE((SELECT jsonb_agg(jsonb_build_object('id',i.id,'track',c.metadata) ORDER BY i.position)
             FROM public.playlist_items i JOIN public.catalog_tracks c ON c.id=i.catalog_track_id WHERE i.playlist_id=p.id),'[]') AS items
         FROM public.playlists p WHERE p.user_id=$1) p),'[]') AS playlists`,
@@ -25,7 +27,8 @@ export function createLibraryRepository(
   async function mutate(
     userId: string,
     command: LibraryCommand,
-    track: CatalogTrack | null = null
+    track: CatalogTrack | null = null,
+    coverKey?: string
   ) {
     const client = await database.connect();
     let broken = false;
@@ -94,8 +97,8 @@ export function createLibraryRepository(
         if (count.rows[0].count >= 100)
           throw new LibraryError("You can create up to 100 playlists.");
         await client.query(
-          "INSERT INTO public.playlists (user_id,name) VALUES ($1,$2)",
-          [userId, command.name]
+          "INSERT INTO public.playlists (user_id,name,description,cover_image_key) VALUES ($1,$2,$3,$4)",
+          [userId, command.name, command.description ?? "", coverKey ?? null]
         );
       } else {
         const row = await client.query(
@@ -156,15 +159,29 @@ export function createLibraryRepository(
             );
           }
           await client.query(
-            "UPDATE public.playlists SET name=COALESCE($2,name),revision=revision+1,updated_at=now() WHERE id=$1 AND user_id=$3",
+            `UPDATE public.playlists SET name=COALESCE($2,name),
+              description=COALESCE($4,description),
+              cover_image_key=CASE WHEN $5 THEN $6 ELSE cover_image_key END,
+              revision=revision+1,updated_at=now() WHERE id=$1 AND user_id=$3`,
             [
               command.playlistId,
-              command.action === "rename" ? command.name : null,
+              command.action === "rename" || command.action === "update"
+                ? command.name
+                : null,
               userId,
+              command.action === "update" ? command.description : null,
+              command.action === "update" &&
+                (coverKey !== undefined || command.removeCover === true),
+              coverKey ?? null,
             ]
           );
         }
       }
+      if (coverKey)
+        await client.query(
+          "DELETE FROM public.playlist_cover_cleanup WHERE object_key=$1",
+          [coverKey]
+        );
       await client.query("COMMIT");
     } catch (error) {
       try {

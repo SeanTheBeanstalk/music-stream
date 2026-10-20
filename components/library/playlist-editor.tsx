@@ -31,11 +31,9 @@ export function PlaylistEditor({
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [confirm, setConfirm] = useState(false);
-  // Description stays local until playlist metadata persistence is extended.
-  const [description, setDescription] = useState("");
   const [draftName, setDraftName] = useState(playlist?.name ?? "");
   const [draftDescription, setDraftDescription] = useState("");
-  const [image, setImage] = useState<File | null>(null);
+  const [removeCover, setRemoveCover] = useState(false);
   const [draftImage, setDraftImage] = useState<File | null>(null);
   async function remove() {
     if (!playlist) return;
@@ -58,8 +56,9 @@ export function PlaylistEditor({
       onOpenChange={(value) => {
         if (value) {
           setDraftName(playlist?.name ?? "");
-          setDraftDescription(description);
-          setDraftImage(image);
+          setDraftDescription(playlist?.description ?? "");
+          setDraftImage(null);
+          setRemoveCover(false);
         }
         setOpen(value);
         setConfirm(false);
@@ -135,17 +134,20 @@ export function PlaylistEditor({
                   await mutate(
                     playlist
                       ? {
-                          action: "rename",
+                          action: "update",
                           playlistId: playlist.id,
                           revision: playlist.revision,
                           name,
+                          description: draftDescription,
+                          removeCover,
                         }
-                      : { action: "create", name }
+                      : {
+                          action: "create",
+                          name,
+                          description: draftDescription,
+                        },
+                    draftImage
                   );
-                  setDescription(
-                    playlist ? String(fields.get("description") ?? "") : ""
-                  );
-                  setImage(playlist ? draftImage : null);
                   setOpen(false);
                 } catch (error) {
                   setMessage(
@@ -171,6 +173,7 @@ export function PlaylistEditor({
                 <span>Description</span>
                 <Textarea
                   name="description"
+                  maxLength={2000}
                   value={draftDescription}
                   onChange={(event) => setDraftDescription(event.target.value)}
                   placeholder="Add a description"
@@ -180,9 +183,28 @@ export function PlaylistEditor({
               </label>
               <PlaylistImageField
                 file={draftImage}
-                artwork={playlist?.items[0]?.track.artwork}
-                onChange={setDraftImage}
+                artwork={
+                  !removeCover
+                    ? (playlist?.coverUrl ?? playlist?.items[0]?.track.artwork)
+                    : playlist?.items[0]?.track.artwork
+                }
+                onChange={(file) => {
+                  setDraftImage(file);
+                  setRemoveCover(false);
+                }}
               />
+              {(draftImage || (playlist?.coverUrl && !removeCover)) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setDraftImage(null);
+                    setRemoveCover(true);
+                  }}
+                >
+                  Remove custom image
+                </Button>
+              )}
               <DialogFooter>
                 <DialogClose render={<Button variant="ghost" />}>
                   Cancel

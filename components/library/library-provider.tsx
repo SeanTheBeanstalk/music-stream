@@ -16,7 +16,7 @@ const Context = createContext<{
   busy: boolean;
   error: string;
   refresh: () => Promise<void>;
-  mutate: (command: LibraryCommand) => Promise<void>;
+  mutate: (command: LibraryCommand, image?: File | null) => Promise<void>;
   account: (
     action: "login" | "register" | "logout",
     username?: string,
@@ -96,13 +96,16 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       setBusy(false);
     }
   }
-  async function mutate(command: LibraryCommand) {
+  async function mutate(command: LibraryCommand, image?: File | null) {
     await work(async () => {
       try {
+        const form = new FormData();
+        form.set("command", JSON.stringify(command));
+        if (image) form.set("image", image);
         const data = await request("/api/library", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(command),
+          headers: image ? undefined : { "Content-Type": "application/json" },
+          body: image ? form : JSON.stringify(command),
         });
         setLibrary(data);
       } catch (e) {

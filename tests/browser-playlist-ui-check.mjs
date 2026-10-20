@@ -54,7 +54,7 @@ function send(method, params = {}) {
     socket.send(JSON.stringify({ id, method, params }));
   });
 }
-socket.onmessage = (event) => {
+socket.onmessage = async (event) => {
   const data = JSON.parse(event.data);
   if (data.id) {
     const job = pending.get(data.id);
@@ -73,8 +73,22 @@ socket.onmessage = (event) => {
     let body = library;
     let status = 200;
     if (url.pathname === "/api/library" && request.method === "POST") {
-      const command = JSON.parse(request.postData);
-      if (command.action === "rename") playlist.name = command.name;
+      const headers = new Headers(request.headers);
+      let command;
+      if (headers.get("content-type")?.startsWith("multipart/form-data")) {
+        const form = await new Request(request.url, {
+          method: "POST",
+          headers,
+          body: request.postData,
+        }).formData();
+        command = JSON.parse(String(form.get("command")));
+        playlist.coverUrl =
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
+      } else command = JSON.parse(request.postData);
+      if (command.action === "rename" || command.action === "update")
+        playlist.name = command.name;
+      if (command.action === "update")
+        playlist.description = command.description;
       if (command.action === "reorder")
         playlist.items.sort(
           (a, b) =>
@@ -226,7 +240,7 @@ try {
     "Evening favorites updated"
   );
   await until(
-    "document.querySelector('img[alt=\"Selected album image preview\"]')?.naturalWidth === 1"
+    "document.querySelector('[data-slot=dialog-content] img')?.naturalWidth === 1"
   );
   await fill('textarea[name="description"]', "Discard this draft");
   await selectImage("discard.png");
@@ -240,7 +254,7 @@ try {
   );
   assert.ok(
     await evaluate(
-      "document.querySelector('[data-slot=dialog-content]').textContent.includes('album.png')"
+      "document.querySelector('[data-slot=dialog-content] img')?.src.startsWith('data:image/png')"
     )
   );
   await fill('input[name="name"]', "Evening favorites");

@@ -220,9 +220,9 @@ export function LibraryView() {
                           list ? "size-20 shrink-0" : "aspect-square w-full"
                         )}
                       >
-                        {p.items[0]?.track.artwork ? (
+                        {p.coverUrl || p.items[0]?.track.artwork ? (
                           <TrackCover
-                            src={p.items[0].track.artwork}
+                            src={p.coverUrl ?? p.items[0]?.track.artwork}
                             className="size-full"
                           />
                         ) : (

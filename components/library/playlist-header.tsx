@@ -27,7 +27,7 @@ export function PlaylistHeader({
     <header className="flex flex-col gap-6 pb-8 sm:flex-row sm:gap-8">
       {playlist ? (
         <TrackCover
-          src={songs[0]?.track.artwork}
+          src={playlist.coverUrl ?? songs[0]?.track.artwork}
           className="size-48 self-center rounded-sm shadow-xl sm:size-56 sm:self-start lg:size-64"
         />
       ) : (
@@ -52,6 +52,11 @@ export function PlaylistHeader({
             </>
           )}
         </p>
+        {playlist?.description && (
+          <p className="mt-3 text-sm wrap-break-word whitespace-pre-wrap text-muted-foreground">
+            {playlist.description}
+          </p>
+        )}
         <div className="mt-7 flex flex-wrap items-center gap-3 sm:mt-auto sm:pt-7">
           <Button
             disabled={busy || !songs.length}
@@ -59,10 +64,7 @@ export function PlaylistHeader({
           >
             <Play aria-hidden="true" className="fill-current" /> Play
           </Button>
-          <Button
-            disabled={busy || !songs.length}
-            onClick={() => onPlay(true)}
-          >
+          <Button disabled={busy || !songs.length} onClick={() => onPlay(true)}>
             <Shuffle aria-hidden="true" /> Shuffle
           </Button>
           <div className="ml-auto flex items-center gap-1 text-[#fa2448] dark:text-rose-400">
