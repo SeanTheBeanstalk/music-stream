@@ -6,6 +6,7 @@ import { LibraryProvider } from "@/components/library/library-provider";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 const instrumentSansHeading = Instrument_Sans({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
               <AppShell>{children}</AppShell>
             </LibraryProvider>
           </PlaybackProvider>
+          <Toaster position="top-center" />
         </ThemeProvider>
       </body>
     </html>
