@@ -11,6 +11,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TrackCover } from "@/components/music/track-cover";
 import { cn } from "@/lib/utils";
 import { songKey } from "@/lib/music/library";
@@ -128,17 +135,24 @@ export function LibraryView() {
                     className="pl-10"
                   />
                 </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <span className="sr-only">Sort library</span>
-                  <select
-                    className="h-10 max-w-full border bg-background px-3 focus-visible:outline-2"
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
+                <Select
+                  value={sort}
+                  onValueChange={(value) => {
+                    if (value) setSort(value);
+                  }}
+                  items={{ recent: "Recently updated", name: "Name" }}
+                >
+                  <SelectTrigger
+                    aria-label="Sort library"
+                    className="max-w-full"
                   >
-                    <option value="recent">Recently updated</option>
-                    <option value="name">Name</option>
-                  </select>
-                </label>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Recently updated</SelectItem>
+                    <SelectItem value="name">Name</SelectItem>
+                  </SelectContent>
+                </Select>
                 <div className="flex gap-1">
                   <Button
                     variant={list ? "ghost" : "secondary"}
@@ -176,7 +190,7 @@ export function LibraryView() {
                     >
                       <button
                         className={cn(
-                          "flex items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-violet-300 text-white focus-visible:outline-2 focus-visible:outline-offset-4",
+                          "flex items-center justify-center rounded-none bg-gradient-to-br from-violet-600 to-violet-300 text-white focus-visible:outline-2 focus-visible:outline-offset-4",
                           list ? "size-20 shrink-0" : "aspect-square w-full"
                         )}
                         aria-label="Open Liked Songs"
@@ -216,7 +230,7 @@ export function LibraryView() {
                         aria-label={`Open ${p.name}`}
                         onClick={() => setSelected(p.id)}
                         className={cn(
-                          "overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4",
+                          "overflow-hidden rounded-none focus-visible:outline-2 focus-visible:outline-offset-4",
                           list ? "size-20 shrink-0" : "aspect-square w-full"
                         )}
                       >

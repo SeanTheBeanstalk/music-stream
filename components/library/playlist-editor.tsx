@@ -73,7 +73,7 @@ export function PlaylistEditor({
             aria-label={playlist ? `Edit ${playlist.name}` : undefined}
             className={cn(
               tile &&
-                "w-full rounded-lg border-dashed text-sm font-medium tracking-normal whitespace-normal text-muted-foreground normal-case hover:text-foreground",
+                "w-full rounded-none border-dashed text-sm font-medium tracking-normal whitespace-normal text-muted-foreground normal-case hover:text-foreground",
               tile &&
                 layout === "grid" &&
                 "aspect-square h-auto flex-col gap-4 self-start p-6",
@@ -88,7 +88,7 @@ export function PlaylistEditor({
           <>
             <Plus
               aria-hidden="true"
-              className={tile ? "size-12 rounded-full border p-2" : undefined}
+              className={tile ? "size-12 rounded-none border p-2" : undefined}
             />
             Create playlist
           </>

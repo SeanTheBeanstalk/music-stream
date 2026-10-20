@@ -3,6 +3,13 @@ import { useState, type FormEvent } from "react";
 import { Search, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MAX_QUERY_LENGTH } from "@/lib/music/track";
 import { STOREFRONTS, type Storefront } from "@/lib/music/catalog";
 export function SearchInput({
@@ -46,23 +53,27 @@ export function SearchInput({
           className="h-12 pl-12 text-base"
         />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <span className="sr-only">Storefront</span>
-        <select
+      <Select
+        value={country}
+        onValueChange={(value) => {
+          if (value) onCountryChange(value);
+        }}
+        items={STOREFRONTS}
+      >
+        <SelectTrigger
           aria-label="Storefront"
-          value={country}
-          onChange={(event) =>
-            onCountryChange(event.target.value as Storefront)
-          }
-          className="h-12 w-full rounded-md border border-input bg-background px-3 focus-visible:outline-2 sm:w-40"
+          className="w-full data-[size=default]:h-12 sm:w-40"
         >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
           {Object.entries(STOREFRONTS).map(([code, name]) => (
-            <option key={code} value={code}>
+            <SelectItem key={code} value={code}>
               {name}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-      </label>
+        </SelectContent>
+      </Select>
       <Button type="submit" disabled={!query.trim()} className="h-12 px-8">
         {loading ? (
           <LoaderCircle aria-hidden="true" className="animate-spin" />

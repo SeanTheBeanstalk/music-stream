@@ -23,7 +23,9 @@ function SidebarNavigation() {
       <SidebarHeader className="px-4 py-5">
         <div className="flex items-center gap-3 text-base font-semibold group-data-[collapsible=icon]:justify-center">
           <Music2 aria-hidden="true" className="size-5" />
-          <span className="group-data-[collapsible=icon]:hidden">Streamify</span>
+          <span className="group-data-[collapsible=icon]:hidden">
+            Streamify
+          </span>
         </div>
       </SidebarHeader>
       <SidebarGroup className="px-2 py-2">
@@ -31,12 +33,13 @@ function SidebarNavigation() {
           <nav aria-label="Main navigation">
             <SidebarMenu>
               {[
-                { href: "/", label: "Home", icon: Home },
-                { href: "/search", label: "Search", icon: Search },
-                { href: "/library", label: "Library", icon: Library },
+                { href: "/", label: "HOME", icon: Home },
+                { href: "/search", label: "SEARCH", icon: Search },
+                { href: "/library", label: "LIBRARY", icon: Library },
               ].map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
+                    className="text-xs font-semibold tracking-widest uppercase data-active:font-semibold"
                     render={
                       <Link
                         href={href}

@@ -12,8 +12,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="flex-col md:flex-row"
       style={
         {
-          "--sidebar-width": "14rem",
-          "--app-sidebar-width": sidebarOpen ? "14rem" : "3rem",
+          "--sidebar-width": "9rem",
+          "--app-sidebar-width": sidebarOpen ? "var(--sidebar-width)" : "3rem",
         } as CSSProperties
       }
     >

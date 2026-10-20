@@ -34,10 +34,10 @@ export function PlaylistImageField({
           <img
             ref={preview}
             alt="Selected album image preview"
-            className="size-20 shrink-0 rounded-sm object-cover"
+            className="size-20 shrink-0 rounded-none object-cover"
           />
         ) : (
-          <TrackCover src={artwork} className="size-20 rounded-sm" />
+          <TrackCover src={artwork} className="size-20 rounded-none" />
         )}
         <div className="min-w-0 flex-1 space-y-1">
           <Input

@@ -75,7 +75,7 @@ export function LibrarySongs({
         {songs.map(({ id, track }, index) => (
           <li
             key={id}
-            className="grid min-h-12 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-sm px-2 odd:bg-muted/60 hover:bg-muted sm:gap-4 sm:px-4"
+            className="grid min-h-12 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-none px-2 odd:bg-muted/60 hover:bg-muted sm:gap-4 sm:px-4"
           >
             <span
               aria-hidden="true"
@@ -84,7 +84,7 @@ export function LibrarySongs({
               {index + 1}
             </span>
             <button
-              className="min-w-0 py-3 text-left text-sm focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+              className="min-w-0 py-3 text-left text-sm focus-visible:rounded-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
               disabled={playback.busy}
               aria-label={`Play ${track.title}, entry ${index + 1}`}
               onClick={() => void playback.start([{ id, track }], false)}
@@ -94,7 +94,7 @@ export function LibrarySongs({
                 {track.explicitness === "explicit" && (
                   <span
                     aria-label="Explicit"
-                    className="rounded-xs bg-muted-foreground px-1 text-[9px] font-bold text-background"
+                    className="rounded-none bg-muted-foreground px-1 text-[9px] font-bold text-background"
                   >
                     E
                   </span>

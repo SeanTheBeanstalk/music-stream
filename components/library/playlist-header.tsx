@@ -28,10 +28,10 @@ export function PlaylistHeader({
       {playlist ? (
         <TrackCover
           src={playlist.coverUrl ?? songs[0]?.track.artwork}
-          className="size-48 self-center rounded-sm shadow-xl sm:size-56 sm:self-start lg:size-64"
+          className="size-48 self-center rounded-none shadow-xl sm:size-56 sm:self-start lg:size-64"
         />
       ) : (
-        <div className="flex size-48 shrink-0 items-center justify-center self-center rounded-sm bg-gradient-to-br from-violet-600 to-violet-300 text-white shadow-xl sm:size-56 sm:self-start lg:size-64">
+        <div className="flex size-48 shrink-0 items-center justify-center self-center rounded-none bg-gradient-to-br from-violet-600 to-violet-300 text-white shadow-xl sm:size-56 sm:self-start lg:size-64">
           <Heart aria-hidden="true" className="size-20 fill-current" />
         </div>
       )}
@@ -71,7 +71,7 @@ export function PlaylistHeader({
             <Link
               href="/search"
               aria-label="Add songs from Search"
-              className="inline-flex min-h-10 items-center gap-1 rounded-sm px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="inline-flex min-h-10 items-center gap-1 rounded-none px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <Plus aria-hidden="true" className="size-4" /> Add
             </Link>
