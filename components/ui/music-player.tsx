@@ -8,6 +8,7 @@ import { trackDetails } from "@/lib/music/track-details";
 import { QueuePanel } from "@/components/playback/queue-panel";
 import { RepeatControl } from "@/components/playback/repeat-control";
 import { TrackCover } from "@/components/music/track-cover";
+import { upcomingQueue } from "@/lib/music/queue";
 
 export function MusicPlayer() {
   const playerRef = useRef<HTMLElement>(null);
@@ -29,7 +30,7 @@ export function MusicPlayer() {
     };
   }, []);
   const p = usePlayback();
-  const upcoming = p.queue.tracks.slice(p.queue.index + 1);
+  const upcoming = upcomingQueue(p.queue, p.repeatMode);
   const details = p.track
     ? trackDetails(p.track, {
         showGenreAndYear: false,
@@ -72,7 +73,9 @@ export function MusicPlayer() {
               variant="ghost"
               size="icon"
               aria-label="Previous track"
-              disabled={p.queue.index <= 0}
+              disabled={
+                !p.track || (p.repeatMode !== "queue" && p.queue.index <= 0)
+              }
               onClick={p.previous}
             >
               <SkipBack />
@@ -89,7 +92,11 @@ export function MusicPlayer() {
               variant="ghost"
               size="icon"
               aria-label="Next track"
-              disabled={!upcoming.length}
+              disabled={
+                !p.queue.tracks.length ||
+                (p.repeatMode !== "queue" &&
+                  p.queue.index + 1 >= p.queue.tracks.length)
+              }
               onClick={p.next}
             >
               <SkipForward />
@@ -137,7 +144,7 @@ export function MusicPlayer() {
                 : p.track && p.repeatMode === "track"
                   ? "Repeating current track"
                   : upcoming.length
-                    ? `Up next: ${trackDetails(upcoming[0]).title} (${upcoming.length} queued)`
+                    ? `Up next: ${trackDetails(upcoming[0].track).title} (${upcoming.length} queued)`
                     : p.track
                       ? p.repeatMode === "queue"
                         ? "Queue will repeat"

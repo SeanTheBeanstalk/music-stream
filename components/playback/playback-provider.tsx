@@ -9,13 +9,18 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { emptyQueue, queueReducer, type RepeatMode } from "@/lib/music/queue";
+import {
+  defaultRepeatMode,
+  emptyQueue,
+  queueReducer,
+  type RepeatMode,
+} from "@/lib/music/queue";
 import type { Track } from "@/lib/music/track";
 import { createPlaybackRetry } from "@/lib/music/playback-retry";
 
 function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   const [queue, dispatch] = useReducer(queueReducer, emptyQueue);
-  const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>(defaultRepeatMode);
   const [playing, setPlaying] = useState(false);
   const [playRequested, setPlayRequested] = useState(false);
   const retryRef = useRef<ReturnType<typeof createPlaybackRetry> | null>(null);
@@ -55,7 +60,7 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     return () => retry.stop();
     // Queue additions must not reload or interrupt the active audio.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [track?.id, queue.index, queue.revision]);
+  }, [track?.id, queue.revision]);
   return {
     queue,
     repeatMode,
@@ -75,13 +80,15 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     play: (track: Track) => dispatch({ type: "play", track }),
     playMany: (tracks: Track[]) => dispatch({ type: "play-many", tracks }),
     enqueue: (track: Track) => dispatch({ type: "enqueue", track }),
-    playQueued: (index: number) => dispatch({ type: "select", index }),
-    removeQueued: (index: number) => dispatch({ type: "remove", index }),
+    playQueued: (index: number) =>
+      dispatch({ type: "select", index, repeatMode }),
+    removeQueued: (index: number) =>
+      dispatch({ type: "remove", index, repeatMode }),
     moveQueued: (from: number, to: number) =>
-      dispatch({ type: "move", from, to }),
-    clearUpcoming: () => dispatch({ type: "clear-upcoming" }),
-    next: () => dispatch({ type: "next" }),
-    previous: () => dispatch({ type: "previous" }),
+      dispatch({ type: "move", from, to, repeatMode }),
+    clearUpcoming: () => dispatch({ type: "clear-upcoming", repeatMode }),
+    next: () => dispatch({ type: "next", repeatMode }),
+    previous: () => dispatch({ type: "previous", repeatMode }),
     toggle: () => {
       if (!track) dispatch({ type: "next" });
       else if (playRequested) retryRef.current?.stop();

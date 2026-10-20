@@ -125,6 +125,8 @@ cache fills, long tracks, or authenticated libraries.
 - [x] Buffering and playback-failure messages with automatic retries (1s exponential backoff capped at 30s, no attempt limit), pause-to-cancel and skip controls; browser autoplay restrictions require Play.
 - [x] Restore the last playback position after failed-stream reloads; cancel pending retries on pause, track changes, and provider cleanup, and ignore stale play-promise failures.
 - [x] Visible, interactive queue panel showing the current track and upcoming tracks in playback order.
+- [x] Repeat queue displays the full upcoming cycle, moving completed occurrences to the end and supporting selection, removal, reordering, and clearing across the wrap boundary without interrupting current audio.
+- [x] New sessions default to Repeat queue so the upcoming count stays constant as tracks finish; Next and Previous wrap around the circular queue in this mode.
 - [x] Queue controls to play a queued track, remove tracks, reorder upcoming tracks, and clear upcoming tracks without interrupting current playback.
 - [x] Responsive, keyboard-accessible queue UI with empty states, status announcements, focus handling, and meaningful tests for queue interactions.
 - [x] Loop playback with Off, Repeat track, and Repeat queue modes, an accessible player control showing the active mode, and meaningful tests for track endings and empty/single-track queues.

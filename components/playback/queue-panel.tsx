@@ -16,6 +16,7 @@ import { QueueTrack } from "@/components/playback/queue-track";
 import { TrackMetadata } from "@/components/music/track-metadata";
 import { trackDetails } from "@/lib/music/track-details";
 import { TrackCover } from "@/components/music/track-cover";
+import { upcomingQueue } from "@/lib/music/queue";
 
 export function QueuePanel() {
   const p = usePlayback();
@@ -25,7 +26,7 @@ export function QueuePanel() {
         showExplicitness: false,
       })
     : null;
-  const upcoming = p.queue.tracks.slice(p.queue.index + 1);
+  const upcoming = upcomingQueue(p.queue, p.repeatMode);
   const [announcement, setAnnouncement] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
 
@@ -47,8 +48,10 @@ export function QueuePanel() {
           <SheetTitle>Queue</SheetTitle>
           <SheetDescription>
             {upcoming.length} upcoming{" "}
-            {upcoming.length === 1 ? "track" : "tracks"}. Changes apply to this
-            session.
+            {upcoming.length === 1 ? "track" : "tracks"}.{" "}
+            {p.repeatMode === "queue"
+              ? "Completed tracks return to the end of the queue."
+              : "Changes apply to this session."}
           </SheetDescription>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
@@ -127,8 +130,7 @@ export function QueuePanel() {
             </div>
             {upcoming.length ? (
               <ol aria-label="Upcoming tracks">
-                {upcoming.map((track, offset) => {
-                  const index = p.queue.index + 1 + offset;
+                {upcoming.map(({ track, index }, offset) => {
                   return (
                     <QueueTrack
                       key={index}
@@ -151,7 +153,7 @@ export function QueuePanel() {
                         heading.current?.focus();
                       }}
                       onMove={(direction) => {
-                        p.moveQueued(index, index + direction);
+                        p.moveQueued(index, upcoming[offset + direction].index);
                         setAnnouncement(
                           `Moved ${trackDetails(track).title} to position ${offset + 1 + direction}.`
                         );

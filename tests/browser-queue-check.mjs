@@ -58,11 +58,11 @@ async function until(expression) {
 }
 async function click(label) {
   await until(
-    `Array.from(document.querySelectorAll('button')).some(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)})`
+    `Array.from(document.querySelectorAll('button, [role=menuitem]')).some(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)})`
   );
   await evaluate(
     `(() => {
-      const button = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)});
+      const button = Array.from(document.querySelectorAll('button, [role=menuitem]')).find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)} || b.textContent === ${JSON.stringify(label)});
       button.focus();
       button.click();
     })()`
@@ -90,7 +90,13 @@ async function key(key, code) {
   });
 }
 async function openQueue(count) {
-  await click(`Open queue (${count} upcoming)`);
+  await click(
+    count === undefined
+      ? await evaluate(
+          "document.querySelector('button[aria-label^=\"Open queue\"]').getAttribute('aria-label')"
+        )
+      : `Open queue (${count} upcoming)`
+  );
   await until("!!document.querySelector('[role=dialog]')");
 }
 async function closeQueue() {
@@ -110,6 +116,7 @@ async function add(title) {
   await until(
     `document.querySelector('article h2')?.textContent === ${JSON.stringify(title)}`
   );
+  await click(`Actions for ${title}`);
   await click("Add to queue");
   await until(
     "document.querySelector('article').textContent.includes('Added to queue')"
@@ -142,6 +149,12 @@ try {
     source: `
     window.testTitle = '';
     window.audioLoads = 0;
+    // Prevent real network media events from racing the deterministic audio stub.
+    Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+      configurable: true,
+      get() { return this.testSource || ''; },
+      set(value) { this.testSource = value; }
+    });
     HTMLMediaElement.prototype.load = function() { window.audioLoads++; };
     HTMLMediaElement.prototype.play = function() {
       if (window.remainingFailures > 0) {
@@ -186,6 +199,11 @@ try {
     true
   );
   await closeQueue();
+  // A new session must be circular without asking the user to change repeat mode.
+  await until(
+    `!!document.querySelector('button[aria-label="${repeatLabels.queue}"]')`
+  );
+  await keyboardClick(repeatLabels.queue);
   for (const mode of ["off", "track", "queue"]) {
     await ended(false);
     await keyboardClick(repeatLabels[mode]);
@@ -269,6 +287,13 @@ try {
     await evaluate("document.querySelector('footer p').textContent"),
     "Second"
   );
+  await openQueue(1);
+  assert.deepEqual(
+    await titles(),
+    ["Current"],
+    "Completed song returns to the visible tail"
+  );
+  await closeQueue();
   await ended();
   assert.equal(
     await evaluate("document.querySelector('footer p').textContent"),
@@ -411,6 +436,80 @@ try {
   }
   console.log(
     "PASS queue layout at 320/375/768/1280px, keyboard opening, focus trap, Escape and focus restoration"
+  );
+
+  await keyboardClick(repeatLabels.off);
+  await keyboardClick(repeatLabels.track);
+  await openQueue();
+  await keyboardClick("Clear upcoming");
+  assert.deepEqual(await titles(), []);
+  await closeQueue();
+  await add("Cycle first");
+  await add("Cycle second");
+  await ended();
+  await openQueue(2);
+  assert.deepEqual(await titles(), ["Cycle second", "Third"]);
+  const cycleLoads = await evaluate("window.audioLoads");
+  await keyboardClick("Move up 2. Third");
+  assert.deepEqual(await titles(), ["Third", "Cycle second"]);
+  await keyboardClick("Move down 1. Third");
+  assert.deepEqual(await titles(), ["Cycle second", "Third"]);
+  await keyboardClick("Remove queued track 2. Third");
+  assert.deepEqual(await titles(), ["Cycle second"]);
+  assert.equal(await evaluate("window.audioLoads"), cycleLoads);
+  await closeQueue();
+  await ended();
+  await openQueue(1);
+  assert.deepEqual(await titles(), ["Cycle first"]);
+  await keyboardClick("Play queued track 1. Cycle first");
+  await until(
+    "document.querySelector('[aria-current=true] p')?.textContent === 'Cycle first'"
+  );
+  assert.deepEqual(await titles(), ["Cycle second"]);
+  await keyboardClick("Clear upcoming");
+  assert.deepEqual(await titles(), []);
+  await closeQueue();
+  console.log(
+    "PASS full cycle display and wrapped selection, reordering, removal and clearing without restarting current audio"
+  );
+
+  await send("Page.reload", { ignoreCache: true });
+  await until(
+    "!!document.querySelector('#music-search') && !!Object.keys(document.querySelector('#music-search')).find(k => k.startsWith('__reactProps'))"
+  );
+  await until(
+    `!!document.querySelector('button[aria-label="${repeatLabels.queue}"]')`
+  );
+  await add("Default first");
+  await add("Default second");
+  await add("Default third");
+  await keyboardClick("Play");
+  await until(
+    "document.querySelector('footer p')?.textContent === 'Default first'"
+  );
+  for (let step = 0; step < 6; step++) {
+    const order = ["Default first", "Default second", "Default third"];
+    await openQueue(2);
+    assert.deepEqual(await titles(), [
+      order[(step + 1) % 3],
+      order[(step + 2) % 3],
+    ]);
+    await closeQueue();
+    await ended();
+  }
+  await keyboardClick("Previous track");
+  await until(
+    "document.querySelector('footer p')?.textContent === 'Default third'"
+  );
+  await keyboardClick("Next track");
+  await until(
+    "document.querySelector('footer p')?.textContent === 'Default first'"
+  );
+  await openQueue(2);
+  assert.deepEqual(await titles(), ["Default second", "Default third"]);
+  await closeQueue();
+  console.log(
+    "PASS fresh session keeps two upcoming tracks across six endings and wraps Previous/Next without changing repeat settings"
   );
 } finally {
   socket.close();
