@@ -3,7 +3,7 @@
 Run these commands from the project folder in PowerShell:
 
 ```powershell
-cd C:\Users\seank\Desktop\Coding\music-stream
+cd path\to\music-stream
 ```
 
 ## Each time you start development
@@ -22,7 +22,7 @@ Open the address printed in the terminal, usually <http://localhost:3000>.
 In a second terminal, open the same project folder and start the audio cache worker:
 
 ```powershell
-cd C:\Users\seank\Desktop\Coding\music-stream
+cd path\to\music-stream
 pnpm cache:worker
 ```
 
@@ -72,7 +72,7 @@ live provider access and does not test the app's queue controls or R2 cache.
 
 ### 1. Install the required tools
 
-- Node.js 22.6 or newer and pnpm.
+- Node.js 22.17.1 or newer within the Node.js 22 release line, and pnpm.
 - yt-dlp for YouTube playback and cache downloads.
 - ffprobe, included with FFmpeg, for the cache worker's audio verification.
 - PostgreSQL 14 or newer, locally or hosted. Install the `psql` client if you
@@ -142,16 +142,18 @@ This creates `music_stream` and applies migrations 0001 through 0004. Match
 `DATABASE_URL` to your database credentials. Skip this command if the database
 already exists.
 
-For an empty database you created through a hosting provider, apply both scripts
+For an empty database you created through a hosting provider, apply all four scripts
 in order using its SQL editor, or use `psql` with your host and database:
 
 ```powershell
 psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0001_initial_schema.sql
 psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0002_cache_objects.sql
+psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0003_library_accounts.sql
+psql -X -h YOUR_HOST -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 -f database/migrations/0004_playlist_metadata.sql
 ```
 
-For an existing installation with migration 0001 applied, run only migration
-0002 if it has not already been applied. These scripts run once; do not rerun
+For an existing installation, apply only the missing migrations in numeric
+order. These scripts run once; do not rerun
 them on every startup. See [database setup](database/README.md) for details.
 
 Then start the website and worker using the two terminals above.
@@ -193,8 +195,8 @@ This can process a queued job and then exit; it does not keep the worker running
 During normal use, a completed upload prints `Audio cache job completed.` in the
 worker terminal.
 
-If playback works but uploads do not, check that `AUDIO_CACHE_ENABLED=true`, both
-migrations are applied, and the worker is running. If the worker reports a missing
+If playback works but uploads do not, check that `AUDIO_CACHE_ENABLED=true`, all
+four migrations are applied, and the worker is running. If the worker reports a missing
 tool, correct `YT_DLP_PATH` or `FFPROBE_PATH`. If it reports database or storage
 failures, check connectivity and the corresponding credentials in `.env.local`.
 
