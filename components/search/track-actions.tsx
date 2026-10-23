@@ -19,7 +19,6 @@ export function useTrackActions({
   const own = useRef<AbortController | null>(null);
   const [source, setSource] = useState<Track | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
   useEffect(() => () => own.current?.abort(), []);
   async function resolve(action: "play" | "enqueue") {
     pendingActionRef.current?.abort();
@@ -27,7 +26,9 @@ export function useTrackActions({
     own.current = controller;
     pendingActionRef.current = controller;
     setBusy(true);
-    setMessage("Finding a matching YouTube upload...");
+    const notification = toast.loading("Finding a matching YouTube upload...");
+    const dismiss = () => toast.dismiss(notification);
+    controller.signal.addEventListener("abort", dismiss, { once: true });
     try {
       let selected = source;
       if (!selected) {
@@ -47,31 +48,33 @@ export function useTrackActions({
       onResolved(selected!);
       if (action === "play") play(selected!);
       else enqueue(selected!);
-      if (action === "enqueue") {
-        toast("Added to queue");
-        setMessage("");
-      } else {
-        setMessage("Selected for playback");
-      }
+      toast.success(
+        action === "enqueue" ? "Added to queue" : "Selected for playback",
+        { id: notification }
+      );
     } catch (error) {
       if (!controller.signal.aborted)
-        setMessage(
+        toast.error(
           error instanceof Error
             ? error.message
-            : "Unable to resolve playback. Please retry."
+            : "Unable to resolve playback. Please retry.",
+          { id: notification }
         );
     } finally {
+      controller.signal.removeEventListener("abort", dismiss);
+      if (pendingActionRef.current === controller)
+        pendingActionRef.current = null;
       if (own.current === controller) {
+        own.current = null;
         setBusy(false);
-        if (controller.signal.aborted) setMessage("");
       }
     }
   }
-  return { resolve, busy, message };
+  return { resolve, busy };
 }
 
 export function TrackActions(props: Parameters<typeof useTrackActions>[0]) {
-  const { resolve, busy, message } = useTrackActions(props);
+  const { resolve, busy } = useTrackActions(props);
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -88,9 +91,6 @@ export function TrackActions(props: Parameters<typeof useTrackActions>[0]) {
           Add to queue
         </Button>
       </div>
-      <p role="status" className="text-sm text-muted-foreground">
-        {message}
-      </p>
     </div>
   );
 }

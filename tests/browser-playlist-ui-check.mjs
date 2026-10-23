@@ -32,6 +32,7 @@ const library = {
   playlists: [playlist],
 };
 let failResolve = false;
+let failLibrary = false;
 const resolutions = [];
 const pages = await (await fetch(`${cdp}/json`)).json();
 const page = pages.find((p) => p.type === "page");
@@ -116,6 +117,18 @@ socket.onmessage = async (event) => {
           };
       if (failResolve) status = 503;
     }
+    if (
+      url.pathname === "/api/library" &&
+      request.method === "GET" &&
+      failLibrary
+    ) {
+      status = 503;
+      body = { error: "Fixture library unavailable." };
+    }
+    if (url.pathname === "/api/search") {
+      status = 503;
+      body = { error: "Fixture search unavailable." };
+    }
     void send("Fetch.fulfillRequest", {
       requestId,
       responseCode: status,
@@ -176,6 +189,7 @@ try {
   await send("Fetch.enable", {
     patterns: [
       { urlPattern: "*/api/library" },
+      { urlPattern: "*/api/search?*" },
       { urlPattern: "*/api/resolve?*" },
       { urlPattern: "*/api/stream/*" },
     ],
@@ -216,7 +230,7 @@ try {
   await fill('textarea[name="description"]', "A quiet evening");
   await selectImage("invalid.txt", "text/plain");
   await until(
-    "document.querySelector('[role=alert]')?.textContent.includes('Choose a JPG')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=error]')).some(el => el.textContent.includes('Choose a JPG'))"
   );
   await selectImage("album.png");
   await until(
@@ -301,7 +315,7 @@ try {
   );
   await click("main header button");
   await until(
-    "document.body.innerText.includes('Playlist selected for playback.')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=success]')).some(el => el.textContent.includes('Playlist selected for playback.'))"
   );
   assert.deepEqual(
     resolutions,
@@ -328,7 +342,7 @@ try {
   failResolve = true;
   await click('button[aria-label="Play GET IT, entry 1"]');
   await until(
-    "document.body.innerText.includes('Fixture track unavailable. Please retry.')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=error]')).some(el => el.textContent.includes('Fixture track unavailable. Please retry.'))"
   );
   assert.equal(
     await evaluate("document.querySelector('main header button').disabled"),
@@ -393,13 +407,50 @@ try {
       "Array.from(document.querySelectorAll('main header button')).every(b=>b.textContent.trim()==='Play'||b.textContent.trim()==='Shuffle'?b.disabled:true)"
     )
   );
+  failLibrary = true;
+  await send("Page.reload");
+  await until(
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=error]')).some(el => el.textContent.includes('Fixture library unavailable.'))"
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('main').textContent.includes('Fixture library unavailable.')"
+    ),
+    false
+  );
+  // A failed retry must re-show the toast, even when its message is unchanged.
+  await click("[data-sonner-toast] [data-button]");
+  await until(
+    "Array.from(document.querySelectorAll('[data-sonner-toast]:not([data-removed=true])')).some(el => el.textContent.includes('Fixture library unavailable.'))"
+  );
+  failLibrary = false;
+  await click("main button");
+  await until(
+    "!!document.querySelector('button[aria-label=\"Open Evening favorites\"]')"
+  );
+  await until(
+    "!document.querySelector('[data-sonner-toast]:not([data-removed=true])')"
+  );
+  await send("Page.navigate", { url: `${origin}/search` });
+  await until("!!document.querySelector('#music-search')");
+  await fill("#music-search", "fixture");
+  await evaluate("document.querySelector('form').requestSubmit()");
+  await until(
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=error]')).some(el => el.textContent.includes('Fixture search unavailable.'))"
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('main').textContent.includes('Fixture search unavailable.')"
+    ),
+    false
+  );
   assert.deepEqual(
     fieldWarnings,
     [],
     "No uncontrolled field warnings after renaming"
   );
   console.log(
-    "PASS: Edge fixture playlist UI; Play/Shuffle, duplicate queue entries, recoverable failure, keyboard dropdown/focus, reorder/remove, empty state, and 320/375/768/1440px layouts."
+    "PASS: Edge fixture playlist UI; Play/Shuffle, duplicate queue entries, recoverable failure, keyboard dropdown/focus, reorder/remove, empty state, image/search/library error toasts, repeated Retry and recovery, and 320/375/768/1440px layouts."
   );
 } finally {
   socket.close();

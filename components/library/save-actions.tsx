@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { Heart, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,13 +16,18 @@ import { useLibrary } from "./library-provider";
 
 export function useSaveActions(track: CatalogTrack) {
   const { library, mutate, busy, loading } = useLibrary();
-  const [message, setMessage] = useState("");
+  const router = useRouter();
   const liked = library.likes.some(
     (song) => songKey(song.track) === songKey(track)
   );
   async function save(playlistId?: string) {
     if (!library.user) {
-      setMessage("Sign in from Library to save music.");
+      toast.info("Sign in from Library to save music.", {
+        action: {
+          label: "Open Library",
+          onClick: () => router.push("/library"),
+        },
+      });
       return;
     }
     try {
@@ -34,7 +40,7 @@ export function useSaveActions(track: CatalogTrack) {
           trackId: track.trackId,
           country: track.country,
         });
-        setMessage(`Added to ${playlist.name}.`);
+        toast.success(`Added to ${playlist.name}.`);
       } else {
         await mutate({
           action: "like",
@@ -42,22 +48,21 @@ export function useSaveActions(track: CatalogTrack) {
           trackId: track.trackId,
           country: track.country,
         });
-        setMessage(
+        toast.success(
           liked ? "Removed from liked songs." : "Saved to liked songs."
         );
       }
     } catch (error) {
-      setMessage(
+      toast.error(
         error instanceof Error ? error.message : "Unable to save. Please retry."
       );
     }
   }
-  return { library, busy, loading, liked, save, message };
+  return { library, busy, loading, liked, save };
 }
 
 export function SaveActions({ track }: { track: CatalogTrack }) {
-  const { library, busy, loading, liked, save, message } =
-    useSaveActions(track);
+  const { library, busy, loading, liked, save } = useSaveActions(track);
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
@@ -110,17 +115,6 @@ export function SaveActions({ track }: { track: CatalogTrack }) {
           </PopoverContent>
         </Popover>
       </div>
-      <p role="status" className="text-sm text-muted-foreground">
-        {message}
-        {!library.user && message && (
-          <>
-            {" "}
-            <Link className="underline" href="/library">
-              Open Library
-            </Link>
-          </>
-        )}
-      </p>
     </div>
   );
 }

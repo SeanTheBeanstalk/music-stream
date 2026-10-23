@@ -138,18 +138,17 @@ export function MusicPlayer() {
         </div>
         <div className="flex items-center justify-between gap-3">
           <p role="status" className="min-w-0 text-xs text-muted-foreground">
-            {p.error ??
-              (p.buffering
-                ? "Buffering..."
-                : p.track && p.repeatMode === "track"
-                  ? "Repeating current track"
-                  : upcoming.length
-                    ? `Up next: ${trackDetails(upcoming[0].track).title} (${upcoming.length} queued)`
-                    : p.track
-                      ? p.repeatMode === "queue"
-                        ? "Queue will repeat"
-                        : "End of queue"
-                      : "Your queue is empty")}
+            {p.buffering
+              ? "Buffering..."
+              : p.track && p.repeatMode === "track"
+                ? "Repeating current track"
+                : upcoming.length
+                  ? `Up next: ${trackDetails(upcoming[0].track).title} (${upcoming.length} queued)`
+                  : p.track
+                    ? p.repeatMode === "queue"
+                      ? "Queue will repeat"
+                      : "End of queue"
+                    : "Your queue is empty"}
           </p>
           <RepeatControl />
         </div>

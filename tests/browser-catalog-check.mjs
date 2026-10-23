@@ -202,12 +202,12 @@ try {
   );
   await keyboardClick("Like");
   await until(
-    "document.querySelector('article').textContent.includes('Sign in from Library')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast]')).some(el => el.textContent.includes('Sign in from Library'))"
   );
   await evaluate("window.resolutionMode = 'fail'");
   await click("Add to queue");
   await until(
-    "document.querySelector('article').textContent.includes('No confident YouTube match')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=error]')).some(el => el.textContent.includes('No confident YouTube match'))"
   );
   assert.equal(
     await evaluate("document.querySelector('audio').getAttribute('src')"),
@@ -313,7 +313,7 @@ try {
   await evaluate("window.resolutionMode = 'success'");
   await click("Add to queue");
   await until(
-    "document.querySelector('article').textContent.includes('Added to queue')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=success]')).some(el => el.textContent.includes('Added to queue'))"
   );
   await openQueue(1);
   await until(
@@ -335,7 +335,11 @@ try {
     "fast"
   );
   await evaluate(
-    "(() => { const select = document.querySelector('select'); select.value = 'SG'; select.dispatchEvent(new Event('change', { bubbles: true })); })()"
+    "document.querySelector('button[aria-label=\"Storefront\"]').click()"
+  );
+  await until("!!document.querySelector('[role=option]')");
+  await evaluate(
+    "Array.from(document.querySelectorAll('[role=option]')).find(el => el.textContent.includes('Singapore')).click()"
   );
   await until("!document.querySelector('article')");
   await submit("singapore");

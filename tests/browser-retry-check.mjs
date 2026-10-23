@@ -103,7 +103,9 @@ socket.addEventListener("message", async (event) => {
               },
             ],
           }
-        : { track };
+        : request.url.includes("/api/library")
+          ? { user: null, likes: [], playlists: [] }
+          : { track };
       await send("Fetch.fulfillRequest", {
         requestId,
         responseCode: 200,
@@ -134,6 +136,15 @@ async function until(expression) {
     `Timed out: ${expression}; ${await evaluate("document.querySelector('footer')?.textContent")}`
   );
 }
+async function playSearchTrack() {
+  await evaluate(
+    "document.querySelector('article button[aria-label^=\"Actions for\"]').click()"
+  );
+  await until("!!document.querySelector('[role=menuitem]')");
+  await evaluate(
+    "Array.from(document.querySelectorAll('[role=menuitem]')).find(el => el.textContent === 'Play').click()"
+  );
+}
 try {
   await send("Page.enable");
   await send("Fetch.enable", { patterns: [{ urlPattern: "*/api/*" }] });
@@ -148,9 +159,7 @@ try {
     document.querySelector('form').requestSubmit();
   })()`);
   await until("!!document.querySelector('article button')");
-  await evaluate(
-    "Array.from(document.querySelectorAll('article button')).find(b=>b.textContent==='Play').click()"
-  );
+  await playSearchTrack();
   await until("document.querySelector('audio').currentTime > 0.1");
   assert.ok(requests >= 3, "Audio must retry real HTTP 502s before playing");
   console.log("PASS real media recovers from HTTP 502 without another click");
@@ -159,7 +168,7 @@ try {
     "document.querySelector('audio').dispatchEvent(new Event('error'))"
   );
   await until(
-    "document.querySelector('footer').textContent.includes('Retrying')"
+    "document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')?.textContent.includes('Retrying')"
   );
   await evaluate(
     "document.querySelector('footer button[aria-label=Pause]').click()"
@@ -170,11 +179,9 @@ try {
   console.log("PASS pause cancels pending retry");
   partial = true;
   requests = 0;
-  await evaluate(
-    "Array.from(document.querySelectorAll('article button')).find(b=>b.textContent==='Play').click()"
-  );
+  await playSearchTrack();
   await until(
-    "document.querySelector('footer').textContent.includes('Retrying')"
+    "document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')?.textContent.includes('Retrying')"
   );
   assert.ok(requests >= 2, "Partial audio must request additional data");
   partial = false;

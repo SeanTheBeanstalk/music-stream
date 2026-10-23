@@ -119,7 +119,7 @@ async function add(title) {
   await click(`Actions for ${title}`);
   await click("Add to queue");
   await until(
-    "document.querySelector('article').textContent.includes('Added to queue')"
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=success]')).some(el => el.textContent.includes('Added to queue'))"
   );
 }
 const repeatLabels = {
@@ -157,6 +157,7 @@ try {
     });
     HTMLMediaElement.prototype.load = function() { window.audioLoads++; };
     HTMLMediaElement.prototype.play = function() {
+      if (window.blockPlayback) return Promise.reject(new DOMException('User gesture required', 'NotAllowedError'));
       if (window.remainingFailures > 0) {
         window.remainingFailures--;
         this.dispatchEvent(new Event('error'));
@@ -254,21 +255,28 @@ try {
     "window.remainingFailures = 1; document.querySelector('audio').dispatchEvent(new Event('error'))"
   );
   await until(
-    "document.querySelector('footer').textContent.includes('Retrying in 1s')"
+    "document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')?.textContent.includes('Retrying in 1s')"
   );
   assert.equal(await evaluate("window.audioLoads"), errorLoads);
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('[data-sonner-toast][data-type=error]:not([data-removed=true])').length"
+    ),
+    1,
+    "One playback error toast across retries"
+  );
   await until(
-    "document.querySelector('footer').textContent.includes('Retrying in 2s')"
+    "document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')?.textContent.includes('Retrying in 2s')"
   );
   await until(`window.audioLoads === ${errorLoads + 2}`);
   await until(
-    "!document.querySelector('footer').textContent.includes('Retrying')"
+    "!document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')?.textContent.includes('Retrying')"
   );
   await evaluate(
     "document.querySelector('audio').dispatchEvent(new Event('error'))"
   );
   await until(
-    "document.querySelector('footer').textContent.includes('Retrying in 1s')"
+    "document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')?.textContent.includes('Retrying in 1s')"
   );
   await keyboardClick("Pause");
   const pausedLoads = await evaluate("window.audioLoads");
@@ -456,6 +464,9 @@ try {
   assert.deepEqual(await titles(), ["Cycle second", "Third"]);
   await keyboardClick("Remove queued track 2. Third");
   assert.deepEqual(await titles(), ["Cycle second"]);
+  await until(
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=success]')).some(el => el.textContent.includes('Removed Third from the queue.'))"
+  );
   assert.equal(await evaluate("window.audioLoads"), cycleLoads);
   await closeQueue();
   await ended();
@@ -508,8 +519,25 @@ try {
   await openQueue(2);
   assert.deepEqual(await titles(), ["Default second", "Default third"]);
   await closeQueue();
+  await keyboardClick("Pause");
+  await evaluate("window.blockPlayback = true");
+  await keyboardClick("Play");
+  await until(
+    "Array.from(document.querySelectorAll('[data-sonner-toast][data-type=error]')).some(el => el.textContent.includes('Your browser requires you to press Play'))"
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('footer').textContent.includes('Your browser requires')"
+    ),
+    false
+  );
+  await evaluate("window.blockPlayback = false");
+  await keyboardClick("Play");
+  await until(
+    "!document.querySelector('[data-sonner-toast][data-type=error]:not([data-removed=true])')"
+  );
   console.log(
-    "PASS fresh session keeps two upcoming tracks across six endings and wraps Previous/Next without changing repeat settings"
+    "PASS fresh session keeps two upcoming tracks across six endings, wraps Previous/Next, and shows/clears browser restriction toasts"
   );
 } finally {
   socket.close();

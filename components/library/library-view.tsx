@@ -60,10 +60,9 @@ export function LibraryView() {
       {loading ? (
         <p role="status">Loading your library…</p>
       ) : error ? (
-        <div role="alert" className="space-y-3 border p-5">
-          <p>{error}</p>
+        <div className="space-y-3 border p-5">
           <Button variant="outline" onClick={() => void refresh()}>
-            Retry
+            Retry loading library
           </Button>
         </div>
       ) : !library.user ? (

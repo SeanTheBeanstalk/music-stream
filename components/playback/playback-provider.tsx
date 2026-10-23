@@ -15,6 +15,7 @@ import {
   queueReducer,
   type RepeatMode,
 } from "@/lib/music/queue";
+import { toast } from "sonner";
 import type { Track } from "@/lib/music/track";
 import { createPlaybackRetry } from "@/lib/music/playback-retry";
 
@@ -25,7 +26,6 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   const [playRequested, setPlayRequested] = useState(false);
   const retryRef = useRef<ReturnType<typeof createPlaybackRetry> | null>(null);
   const [buffering, setBuffering] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -34,17 +34,28 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    let notification: string | number | undefined;
     const retry = createPlaybackRetry(audio, (status, delay) => {
       setPlayRequested(status !== "paused" && status !== "blocked");
       setPlaying(status === "playing");
       setBuffering(status === "loading");
-      setError(
-        status === "retrying"
-          ? `Unable to load audio. Retrying in ${delay! / 1000}s… Pause to cancel or skip this track.`
-          : status === "blocked"
-            ? "Your browser requires you to press Play to start audio."
-            : null
-      );
+      if (status === "retrying") {
+        notification = toast.error(
+          `Unable to load audio. Retrying in ${delay! / 1000}s... Pause to cancel or skip this track.`,
+          {
+            id: notification,
+            duration: Infinity,
+          }
+        );
+      } else if (status === "blocked") {
+        notification = toast.error(
+          "Your browser requires you to press Play to start audio.",
+          { id: notification }
+        );
+      } else if (status === "playing" || status === "paused") {
+        if (notification !== undefined) toast.dismiss(notification);
+        notification = undefined;
+      }
     });
     retryRef.current = retry;
     return () => {
@@ -72,7 +83,6 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
     playing,
     playRequested,
     buffering,
-    error,
     time,
     duration,
     volume,
@@ -116,7 +126,6 @@ function usePlaybackState(audioRef: RefObject<HTMLAudioElement | null>) {
         setTime(0);
         setDuration(0);
         setSeekable(false);
-        setError(null);
       },
       onTimeUpdate: () => setTime(audioRef.current?.currentTime ?? 0),
       onProgress: () =>

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Search, LoaderCircle } from "lucide-react";
 import { SearchInput } from "./search-input";
 import { SearchResult } from "./search-result";
@@ -11,7 +12,6 @@ import {
 type SearchState = {
   status: "initial" | "loading" | "empty" | "error" | "success";
   tracks?: CatalogTrack[];
-  message?: string;
   query?: string;
 };
 export function SearchView({ defaultCountry }: { defaultCountry: Storefront }) {
@@ -47,15 +47,14 @@ export function SearchView({ defaultCountry }: { defaultCountry: Storefront }) {
         query,
       });
     } catch (error) {
-      if (!controller.signal.aborted)
-        setState({
-          status: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Search failed. Please try again.",
-          query,
-        });
+      if (!controller.signal.aborted) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Search failed. Please try again."
+        );
+        setState({ status: "error", query });
+      }
     }
   }
   return (
@@ -125,11 +124,11 @@ export function SearchView({ defaultCountry }: { defaultCountry: Storefront }) {
                   ? "Searching iTunes..."
                   : state.status === "empty"
                     ? "No track found"
-                    : "Unable to search"}
+                    : "Search again"}
             </h2>
             <p className="max-w-md text-sm text-muted-foreground">
               {state.status === "error"
-                ? state.message
+                ? "Try your search again or choose another storefront."
                 : state.status === "empty"
                   ? `No result for "${state.query}". Try another song, artist, or storefront.`
                   : state.status === "initial"

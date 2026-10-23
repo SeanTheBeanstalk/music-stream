@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { toast } from "sonner";
 import { TrackCover } from "@/components/music/track-cover";
 import { Input } from "@/components/ui/input";
 
@@ -15,7 +16,7 @@ export function PlaylistImageField({
 }) {
   const id = useId();
   const preview = useRef<HTMLImageElement>(null);
-  const [error, setError] = useState("");
+  const [invalid, setInvalid] = useState(false);
 
   useEffect(() => {
     if (!file) return;
@@ -45,8 +46,8 @@ export function PlaylistImageField({
             type="file"
             name="albumImage"
             accept="image/jpeg,image/png,image/webp"
-            aria-describedby={`${id}-hint${error ? ` ${id}-error` : ""}`}
-            aria-invalid={!!error}
+            aria-describedby={`${id}-hint`}
+            aria-invalid={invalid}
             onChange={(event) => {
               const selected = event.target.files?.[0];
               if (!selected) return;
@@ -56,11 +57,12 @@ export function PlaylistImageField({
                 ) ||
                 selected.size > 5 * 1024 * 1024
               ) {
-                setError("Choose a JPG, PNG, or WebP image up to 5 MB.");
+                setInvalid(true);
+                toast.error("Choose a JPG, PNG, or WebP image up to 5 MB.");
                 event.target.value = "";
                 return;
               }
-              setError("");
+              setInvalid(false);
               onChange(selected);
             }}
           />
@@ -69,11 +71,6 @@ export function PlaylistImageField({
           </p>
         </div>
       </div>
-      {error && (
-        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

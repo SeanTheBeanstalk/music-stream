@@ -1,5 +1,6 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef } from "react";
+import { toast } from "sonner";
 import { TrackActionMenu } from "@/components/music/track-action-menu";
 import { useLibrary } from "./library-provider";
 import type { Playlist, PlaylistItem } from "@/lib/music/library";
@@ -20,7 +21,6 @@ export function LibrarySongs({
 }) {
   const pending = useRef<AbortController | null>(null);
   const { mutate, busy } = useLibrary();
-  const [message, setMessage] = useState("");
   const playback = usePlaylistPlayback();
   async function edit(itemId: string, direction?: -1 | 1) {
     if (!playlist) return;
@@ -37,7 +37,7 @@ export function LibrarySongs({
           revision: playlist.revision,
           itemIds: ids,
         });
-        setMessage("Playlist order updated.");
+        toast.success("Playlist order updated.");
       } else {
         await mutate({
           action: "remove",
@@ -45,10 +45,10 @@ export function LibrarySongs({
           revision: playlist.revision,
           itemId,
         });
-        setMessage("Song removed from playlist.");
+        toast.success("Song removed from playlist.");
       }
     } catch (error) {
-      setMessage(
+      toast.error(
         error instanceof Error ? error.message : "Unable to update playlist."
       );
     }
@@ -61,9 +61,6 @@ export function LibrarySongs({
         busy={playback.busy}
         onPlay={(shuffle) => void playback.start(songs, shuffle)}
       />
-      <p role="status" className="text-sm text-muted-foreground empty:hidden">
-        {playback.message}
-      </p>
       {songs.length === 0 && (
         <p className="border border-dashed p-8 text-muted-foreground">
           {playlist
@@ -147,9 +144,6 @@ export function LibrarySongs({
           </li>
         ))}
       </ol>
-      <p role="status" className="text-sm text-muted-foreground">
-        {message}
-      </p>
     </div>
   );
 }

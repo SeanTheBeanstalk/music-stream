@@ -92,26 +92,6 @@ export function TrackActionMenu(props: TrackActionMenuProps) {
           {props.children}
         </DropdownMenuContent>
       </DropdownMenu>
-      <p
-        role="status"
-        className="col-span-full text-sm text-muted-foreground empty:hidden"
-      >
-        {playback.message}
-      </p>
-      <p
-        role="status"
-        className="col-span-full text-sm text-muted-foreground empty:hidden"
-      >
-        {saving.message}
-        {!saving.library.user && saving.message && (
-          <>
-            {" "}
-            <Link className="underline" href="/library">
-              Open Library
-            </Link>
-          </>
-        )}
-      </p>
     </div>
   );
 }

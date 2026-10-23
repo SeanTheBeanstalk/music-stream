@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { usePlayback } from "@/components/playback/playback-provider";
 import type { PlaylistItem } from "@/lib/music/library";
 import type { Track } from "@/lib/music/track";
@@ -9,7 +10,6 @@ export function usePlaylistPlayback() {
   const { playMany } = usePlayback();
   const pending = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
   useEffect(() => () => pending.current?.abort(), []);
 
   async function start(songs: PlaylistItem[], shuffle: boolean) {
@@ -18,7 +18,9 @@ export function usePlaylistPlayback() {
     const controller = new AbortController();
     pending.current = controller;
     setBusy(true);
-    setMessage("Preparing playlist…");
+    const notification = toast.loading("Preparing playlist...");
+    const dismiss = () => toast.dismiss(notification);
+    controller.signal.addEventListener("abort", dismiss, { once: true });
     const ordered = [...songs];
     if (shuffle) {
       for (let i = ordered.length - 1; i > 0; i--) {
@@ -49,21 +51,25 @@ export function usePlaylistPlayback() {
       }
       if (controller.signal.aborted) return;
       playMany(resolved);
-      setMessage(
+      toast.success(
         shuffle
           ? "Playlist shuffled and selected for playback."
-          : "Playlist selected for playback."
+          : "Playlist selected for playback.",
+        { id: notification }
       );
     } catch (error) {
       if (!controller.signal.aborted)
-        setMessage(
+        toast.error(
           error instanceof Error
             ? error.message
-            : "Unable to play playlist. Please retry."
+            : "Unable to play playlist. Please retry.",
+          { id: notification }
         );
     } finally {
+      controller.signal.removeEventListener("abort", dismiss);
+      if (pending.current === controller) pending.current = null;
       if (!controller.signal.aborted) setBusy(false);
     }
   }
-  return { start, busy, message };
+  return { start, busy };
 }

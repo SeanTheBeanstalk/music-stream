@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,6 @@ export function PlaylistEditor({
   const tile = !playlist && layout !== "button";
   const { mutate, busy } = useLibrary();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [draftName, setDraftName] = useState(playlist?.name ?? "");
   const [draftDescription, setDraftDescription] = useState("");
@@ -43,9 +43,10 @@ export function PlaylistEditor({
         playlistId: playlist.id,
         revision: playlist.revision,
       });
+      toast.success("Playlist deleted.");
       setOpen(false);
     } catch (error) {
-      setMessage(
+      toast.error(
         error instanceof Error ? error.message : "Unable to delete playlist."
       );
     }
@@ -62,7 +63,6 @@ export function PlaylistEditor({
         }
         setOpen(value);
         setConfirm(false);
-        setMessage("");
       }}
     >
       <DialogTrigger
@@ -148,9 +148,12 @@ export function PlaylistEditor({
                         },
                     draftImage
                   );
+                  toast.success(
+                    playlist ? "Playlist updated." : "Playlist created."
+                  );
                   setOpen(false);
                 } catch (error) {
-                  setMessage(
+                  toast.error(
                     error instanceof Error
                       ? error.message
                       : "Unable to save playlist."
@@ -226,9 +229,6 @@ export function PlaylistEditor({
             )}
           </>
         )}
-        <p role="status" className="mt-2 text-sm text-destructive">
-          {message}
-        </p>
       </DialogContent>
     </Dialog>
   );

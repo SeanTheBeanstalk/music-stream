@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import type { Library, LibraryCommand } from "@/lib/music/library";
 
 const empty: Library = { user: null, likes: [], playlists: [] };
@@ -32,6 +33,23 @@ async function request(url: string, options?: RequestInit) {
     );
   return body;
 }
+function showLibraryFailure(cause: unknown, retry: () => Promise<void>) {
+  const message =
+    cause instanceof Error ? cause.message : "Unable to load library.";
+  toast.error(message, {
+    id: "library-load-error",
+    duration: Infinity,
+    action: {
+      label: "Retry",
+      onClick: (event) => {
+        event.preventDefault();
+        void retry();
+      },
+    },
+  });
+  return message;
+}
+
 export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const [library, setLibrary] = useState<Library>(empty);
   const [loading, setLoading] = useState(true);
@@ -39,21 +57,28 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState("");
   const lock = useRef(false);
   const sequence = useRef(0);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async function refreshLibrary() {
     const id = ++sequence.current;
     try {
       const data = await request("/api/library");
       if (id === sequence.current) {
         setLibrary(data);
         setError("");
+        toast.dismiss("library-load-error");
       }
     } catch (e) {
       if (id === sequence.current)
-        setError(e instanceof Error ? e.message : "Unable to load library.");
+        setError(showLibraryFailure(e, refreshLibrary));
     } finally {
       if (id === sequence.current) setLoading(false);
     }
   }, []);
+  useEffect(
+    () => () => {
+      toast.dismiss("library-load-error");
+    },
+    []
+  );
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
@@ -63,11 +88,12 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         if (active && id === sequence.current) {
           setLibrary(data);
           setError("");
+          toast.dismiss("library-load-error");
         }
       })
       .catch((e) => {
         if (active && id === sequence.current)
-          setError(e instanceof Error ? e.message : "Unable to load library.");
+          setError(showLibraryFailure(e, refresh));
       })
       .finally(() => {
         if (active && id === sequence.current) setLoading(false);
@@ -90,7 +116,6 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     setBusy(true);
     try {
       await action();
-      setError("");
     } finally {
       lock.current = false;
       setBusy(false);
@@ -108,6 +133,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
           body: image ? form : JSON.stringify(command),
         });
         setLibrary(data);
+        setError("");
+        toast.dismiss("library-load-error");
       } catch (e) {
         await refresh();
         throw e;

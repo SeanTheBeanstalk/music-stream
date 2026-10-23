@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
+import { toast } from "sonner";
 import { ListMusic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +28,6 @@ export function QueuePanel() {
       })
     : null;
   const upcoming = upcomingQueue(p.queue, p.repeatMode);
-  const [announcement, setAnnouncement] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
 
   return (
@@ -87,12 +87,11 @@ export function QueuePanel() {
                   {p.playing ? "Pause" : "Play"}
                 </Button>
                 <p role="status" className="mt-2 text-xs text-muted-foreground">
-                  {p.error ??
-                    (p.buffering
-                      ? "Buffering..."
-                      : p.playing
-                        ? "Playing"
-                        : "Paused")}
+                  {p.buffering
+                    ? "Buffering..."
+                    : p.playing
+                      ? "Playing"
+                      : "Paused"}
                 </p>
               </div>
             ) : (
@@ -119,7 +118,7 @@ export function QueuePanel() {
                 disabled={!upcoming.length}
                 onClick={() => {
                   p.clearUpcoming();
-                  setAnnouncement(
+                  toast.success(
                     "Upcoming tracks cleared. Current track unchanged."
                   );
                   heading.current?.focus();
@@ -140,21 +139,19 @@ export function QueuePanel() {
                       last={offset === upcoming.length - 1}
                       onPlay={() => {
                         p.playQueued(index);
-                        setAnnouncement(
-                          `Selected ${trackDetails(track).title}.`
-                        );
+                        toast.success(`Selected ${trackDetails(track).title}.`);
                         heading.current?.focus();
                       }}
                       onRemove={() => {
                         p.removeQueued(index);
-                        setAnnouncement(
+                        toast.success(
                           `Removed ${trackDetails(track).title} from the queue.`
                         );
                         heading.current?.focus();
                       }}
                       onMove={(direction) => {
                         p.moveQueued(index, upcoming[offset + direction].index);
-                        setAnnouncement(
+                        toast.success(
                           `Moved ${trackDetails(track).title} to position ${offset + 1 + direction}.`
                         );
                         heading.current?.focus();
@@ -169,9 +166,6 @@ export function QueuePanel() {
               </p>
             )}
           </section>
-          <p role="status" className="sr-only">
-            {announcement}
-          </p>
         </div>
       </SheetContent>
     </Sheet>

@@ -96,7 +96,7 @@ try {
   );
   await submit(process.env.TEST_QUERY || "rick astley never gonna give you up");
   await until(
-    "!!document.querySelector('article') || document.body.innerText.includes('Unable to search')"
+    "!!document.querySelector('article') || !!document.querySelector('[data-sonner-toast][data-type=error]')"
   );
   assert.equal(
     await evaluate("!!document.querySelector('article')"),
@@ -108,7 +108,7 @@ try {
     "window.savedAudio = document.querySelector('audio'); Array.from(document.querySelectorAll('article button')).find(b => b.textContent === 'Play').click()"
   );
   await until(
-    "document.querySelector('audio').currentTime > 0 || !!document.querySelector('article [role=status]')?.textContent.match(/no confident|unable|unavailable|could not|too long|busy|retry/i) || !!document.querySelector('footer').textContent.match(/could not|unavailable/)",
+    "document.querySelector('audio').currentTime > 0 || !!document.querySelector('[data-sonner-toast][data-type=error]')?.textContent.match(/no confident|unable|unavailable|could not|too long|busy|retry/i) || !!document.querySelector('footer').textContent.match(/could not|unavailable/)",
     70_000
   );
   const audio = await evaluate(

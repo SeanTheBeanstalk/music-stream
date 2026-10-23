@@ -1,13 +1,12 @@
 "use client";
+import { toast } from "sonner";
 
-import { useState } from "react";
 import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLibrary } from "./library-provider";
 
 export function SidebarAccount() {
   const { library, account, busy } = useLibrary();
-  const [error, setError] = useState("");
 
   if (!library.user) return null;
 
@@ -29,22 +28,17 @@ export function SidebarAccount() {
         title="Sign out"
         className="w-full justify-start gap-3 px-3 text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         onClick={async () => {
-          setError("");
           try {
             await account("logout");
+            toast.success("Signed out.");
           } catch (e) {
-            setError(e instanceof Error ? e.message : "Unable to sign out.");
+            toast.error(e instanceof Error ? e.message : "Unable to sign out.");
           }
         }}
       >
         <LogOut aria-hidden="true" className="size-4" />
         <span className="group-data-[collapsible=icon]:hidden">Sign out</span>
       </Button>
-      {error && (
-        <p role="alert" className="px-3 text-destructive">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

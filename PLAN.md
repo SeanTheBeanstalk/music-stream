@@ -94,6 +94,26 @@ cache fills, long tracks, or authenticated libraries.
 - [x] Bottom player with independently scrolling page content.
 - [x] Accessibility support through a skip link, labeled controls, keyboard focus styles, and live search/player status announcements.
 
+### Notification Consistency
+
+- [x] Use the shared Sonner toaster for queue additions/removals/reordering/clearing and track selection; likes; playlist add/remove/reorder/create/update/delete, Play and Shuffle; and account success/error feedback.
+- [x] Show playback-source and playlist preparation as loading toasts, replacing them with success/error feedback and dismissing cancelled operations.
+- [x] Show invalid playlist images, search failures, library load/refresh failures, audio retry failures, and browser playback restrictions as error toasts instead of inline notification text.
+- [x] Keep library Retry available in both the toast and page recovery control; update one library failure toast and dismiss it when loading succeeds. Failed retries keep the toast available.
+- [x] Update one audio error toast during each retry episode; dismiss it on recovery, pause, track change, and provider cleanup. Later failures receive a fresh toast.
+- [x] Keep ongoing loading/buffering, result counts, empty states, repeat mode, and current/upcoming playback status beside their controls. Preserve image-field invalid semantics and accessible format/size guidance.
+
+Notification validation on **2026-10-22**: `pnpm lint`, `pnpm typecheck`, and
+`pnpm build` passed; `pnpm test` passed **97 tests**, with **3 optional integration
+tests skipped**. Dedicated headless Edge checks passed for playlist/image/search
+and library failure toasts (including failed Retry followed by recovery), catalog
+resolution/cancellation, queue actions and keyboard focus, and responsive layouts
+from **320px to 1440px**. Playback checks verified one active error toast across
+retries, dismissal on recovery/pause, subsequent failure visibility, browser
+playback restriction feedback, and real media recovery from fixture HTTP 502 and
+interrupted WAV responses. Browser checks used fixture APIs/audio, not live music
+providers or production library data.
+
 ### Existing Search Foundation
 
 - [x] Submit a song, artist, or album query with Enter or the Search button; no search subprocess on each keystroke.

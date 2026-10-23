@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,6 @@ import { useLibrary } from "./library-provider";
 export function AccountForm() {
   const { account, busy } = useLibrary();
   const [register, setRegister] = useState(false);
-  const [message, setMessage] = useState("");
   return (
     <section
       className="max-w-md space-y-5 border bg-card p-6"
@@ -26,16 +26,17 @@ export function AccountForm() {
           e.preventDefault();
           const form = e.currentTarget;
           const data = new FormData(form);
-          setMessage("");
+
           try {
             await account(
               register ? "register" : "login",
               String(data.get("username")),
               String(data.get("password"))
             );
+            toast.success(register ? "Account created." : "Signed in.");
             form.reset();
           } catch (error) {
-            setMessage(
+            toast.error(
               error instanceof Error
                 ? error.message
                 : "Sign-in failed. Please retry."
@@ -78,14 +79,10 @@ export function AccountForm() {
         disabled={busy}
         onClick={() => {
           setRegister(!register);
-          setMessage("");
         }}
       >
         {register ? "Already have an account? Sign in" : "Create an account"}
       </Button>
-      <p role="status" className="text-sm text-destructive">
-        {message}
-      </p>
     </section>
   );
 }
